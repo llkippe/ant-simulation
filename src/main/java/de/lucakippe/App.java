@@ -1,0 +1,16 @@
+package de.lucakippe;
+import de.lucakippe.simulation.Simulation;
+import processing.core.PApplet;
+
+/**
+ * Hello world!
+ *
+ */
+public class App 
+{
+    public static void main(String[] args) {
+        Simulation sim = new Simulation();
+        Renderer visualizer = new Renderer(sim); // Pass the simulation to the renderer
+        PApplet.runSketch(new String[]{"AntSimulation"}, visualizer);
+    }
+}
