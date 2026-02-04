@@ -11,7 +11,12 @@ public class Ants {
     private AntState[] states;
     private double speed = 1.0;
     private double wanderStrength = 0.5; // in radians (random value between -wanderStrength/2 and +wanderStrength/2)
-    private double steeringStrength = 0.5; // in radians;
+    private double steeringStrength = 0.1; // in radians;
+
+    private double maxPheromoneDepositAmount = 1.0;
+    private double[] currentPheromoneDepositAmount;
+    private double pheremonDepositDecayRate = 0.01;
+    
 
     public Ants(Pheromones pheromones) {
         this.pheromones = pheromones;
@@ -20,66 +25,65 @@ public class Ants {
         this.posY = new double[Simulation.NUM_ANTS];
         this.directions = new double[Simulation.NUM_ANTS];
         this.states = new AntState[Simulation.NUM_ANTS];
+        this.currentPheromoneDepositAmount = new double[Simulation.NUM_ANTS];
 
         for(int i = 0; i < Simulation.NUM_ANTS; i++) {
             posX[i] = 300;
             posY[i] = 300;
             directions[i] = Math.random() * 2 * Math.PI;
             states[i] = AntState.SEARCHING_FOR_FOOD;
+            currentPheromoneDepositAmount[i] = maxPheromoneDepositAmount;
         }
     }
 
 
     public void update() {
-        move();
-        checkForFood();
-        depositPhreomones();
+        for(int i = 0; i < Simulation.NUM_ANTS; i++) {
+            steerAnt(i);
+            moveAnt(i);
+            checkForFood(i);
+            depositPhreomone(i);
+        }
+    
        
     }
 
-    private void checkForFood() {
-    for(int i = 0; i < Simulation.NUM_ANTS; i++) {
+    private void checkForFood(int i) {
         // simple radius check
         if (states[i] == AntState.SEARCHING_FOR_FOOD &&
             Math.abs(posX[i] - 200) <= 10 && Math.abs(posY[i] - 200) <= 10) {
-            System.out.println( i + "Found FOOD");
             states[i] = AntState.RETURNING_HOME;
-                        directions[i] += Math.PI; // turn around
-             System.out.println(i + states[i].toString());
+            directions[i] += Math.PI; // turn around
+            currentPheromoneDepositAmount[i] = maxPheromoneDepositAmount;
+
+            
         } else if (states[i] == AntState.RETURNING_HOME &&
-            Math.abs(posX[i] - 300) <= 10 && Math.abs(posY[i] - 300) <= 10) {
-                System.out.println("Got Home");
-                directions[i] += Math.PI; // turn around
+            Math.abs(posX[i] - 300) <= 10 && Math.abs(posY[i] - 300) <= 10) {    
+            directions[i] += Math.PI; // turn around
             states[i] = AntState.SEARCHING_FOR_FOOD;
+            currentPheromoneDepositAmount[i] = maxPheromoneDepositAmount;
         }
-    }
 }
 
 
-    private void depositPhreomones() {
-        for(int i = 0; i < Simulation.NUM_ANTS; i++) {
-            int x = (int) posX[i];
-            int y = (int) posY[i];
-            
-
-            if (states[i] == AntState.SEARCHING_FOR_FOOD) {
-                pheromones.depositToHomePheromone(x, y, 3);
-            } else if (states[i] == AntState.RETURNING_HOME) {
-                // deposit food pheromone
-               pheromones.depositToFoodPheromone(x, y, 3);
-            }
+    private void depositPhreomone(int i) {
+        int x = (int) posX[i];
+        int y = (int) posY[i];
+        
+        if (states[i] == AntState.SEARCHING_FOR_FOOD) {
+            pheromones.depositToHomePheromone(x, y, currentPheromoneDepositAmount[i]);
+        } else if (states[i] == AntState.RETURNING_HOME) {
+            // deposit food pheromone
+           pheromones.depositToFoodPheromone(x, y, currentPheromoneDepositAmount[i]);
         }
+
+        currentPheromoneDepositAmount[i] *= (1 - pheremonDepositDecayRate);
+        
     }
 
-    private void move() {
-        for(int i = 0; i < Simulation.NUM_ANTS; i++) {
-            moveAnt(i);
-            steerAnt(i);
-        }
-    }
 
     private void steerAnt(int index) {
-        double sensorDistance = 5.0;
+        double sensorDistance = 20.0;
         double sensorOffsetAngle = Math.PI / 6;
         
         // get strength of pheremones in straight direction

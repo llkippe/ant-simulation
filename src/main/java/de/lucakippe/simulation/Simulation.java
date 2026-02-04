@@ -2,9 +2,9 @@
 package de.lucakippe.simulation;
 
 public class Simulation {
-    public final static int WIDTH = 400;
-    public final static int HEIGHT = 400;
-    final static int NUM_ANTS = 200;
+    public final static int WIDTH = 800;
+    public final static int HEIGHT = 800;
+    final static int NUM_ANTS = 300;
 
     private int stepCount = 0;
 
