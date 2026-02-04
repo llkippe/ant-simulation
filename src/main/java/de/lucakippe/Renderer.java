@@ -2,6 +2,8 @@ package de.lucakippe;
 
 import de.lucakippe.simulation.Simulation;
 import de.lucakippe.simulation.AntState;
+import de.lucakippe.simulation.Food;
+import de.lucakippe.simulation.Nest;
 import processing.core.PApplet;
 import processing.core.PImage;
 
@@ -16,12 +18,12 @@ public class Renderer extends PApplet {
 
     @Override
     public void settings() {
-        size(800, 800, P2D);
+        size(600, 600, P2D);
     }
 
     @Override
     public void setup() {
-        frameRate(60);
+        frameRate(120);
         
         pheromoneMap = createImage(Simulation.WIDTH, Simulation.HEIGHT, RGB);
         
@@ -60,7 +62,7 @@ public class Renderer extends PApplet {
         double[] ys = antsData.getPosY();
         AntState[] states = antsData.getStates();
 
-        strokeWeight(2 * scaleX); // Scale ant size slightly too
+        strokeWeight(3 * scaleX); // Scale ant size slightly too
         for (int i = 0; i < antsData.getNumAnts(); i++) {
             if (states[i] == AntState.SEARCHING_FOR_FOOD) {
                 stroke(255); // White searching
@@ -73,16 +75,29 @@ public class Renderer extends PApplet {
 
 
         // 3. Draw Home and Food markers
-        drawMarkers();
+      
+        drawNest();
+        drawFoodSources();
 
         surface.setTitle("FPS: " + (int)frameRate);
     }
-private void drawMarkers() {
+
+    private void drawFoodSources() {
+        noStroke();
+        fill(255, 0, 0, 150);
+        Food[] foodSources = sim.getFoodSources();
+        for(int i = 0; i < foodSources.length; i++) {
+            var food = foodSources[i];
+            circle(food.getPosX() * scaleX, food.getPosY() * scaleY, food.getRadius() * 2 * scaleX);
+        }
+    }
+
+    private void drawNest() {
         noStroke();
         fill(0, 0, 255, 150);
-        circle(300 * scaleX, 300 * scaleY, 20 * scaleX);
-
-        fill(255, 0, 0, 150);
-        circle(200 * scaleX, 200 * scaleY, 20 * scaleX);
+        Nest nest = sim.getNest();
+        circle(nest.getPosX() * scaleX, nest.getPosY() * scaleY, nest.getRadius() * 2 * scaleX);
     }
+
+
 }

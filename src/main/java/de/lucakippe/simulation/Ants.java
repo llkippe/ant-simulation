@@ -17,9 +17,14 @@ public class Ants {
     private double[] currentPheromoneDepositAmount;
     private double pheremonDepositDecayRate = 0.01;
     
+    private Nest nest;
+    private Food[] foodSources;
 
-    public Ants(Pheromones pheromones) {
+
+    public Ants(Pheromones pheromones, Nest nest, Food[] foodSources) {
         this.pheromones = pheromones;
+        this.nest = nest;
+        this.foodSources = foodSources;
 
         this.posX = new double[Simulation.NUM_ANTS];
         this.posY = new double[Simulation.NUM_ANTS];
@@ -28,8 +33,8 @@ public class Ants {
         this.currentPheromoneDepositAmount = new double[Simulation.NUM_ANTS];
 
         for(int i = 0; i < Simulation.NUM_ANTS; i++) {
-            posX[i] = 300;
-            posY[i] = 300;
+            posX[i] = nest.getPosX();
+            posY[i] = nest.getPosY();
             directions[i] = Math.random() * 2 * Math.PI;
             states[i] = AntState.SEARCHING_FOR_FOOD;
             currentPheromoneDepositAmount[i] = maxPheromoneDepositAmount;
@@ -41,29 +46,41 @@ public class Ants {
         for(int i = 0; i < Simulation.NUM_ANTS; i++) {
             steerAnt(i);
             moveAnt(i);
-            checkForFood(i);
+            checkForFoodSources(i);
+            checkForNest(i);
             depositPhreomone(i);
         }
     
        
     }
 
-    private void checkForFood(int i) {
+    private void checkForFoodSources(int i) {
         // simple radius check
-        if (states[i] == AntState.SEARCHING_FOR_FOOD &&
-            Math.abs(posX[i] - 200) <= 10 && Math.abs(posY[i] - 200) <= 10) {
+        if (states[i] == AntState.SEARCHING_FOR_FOOD && isOnFoodSource(posX[i], posY[i])) {
             states[i] = AntState.RETURNING_HOME;
             directions[i] += Math.PI; // turn around
             currentPheromoneDepositAmount[i] = maxPheromoneDepositAmount;
+        }
+    }
 
-            
-        } else if (states[i] == AntState.RETURNING_HOME &&
-            Math.abs(posX[i] - 300) <= 10 && Math.abs(posY[i] - 300) <= 10) {    
+    private boolean isOnFoodSource(double posX, double posY) {
+        for(int f = 0; f < foodSources.length; f++) {
+            Food food = foodSources[f];
+            if(food.isInsideFood(posX, posY)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void checkForNest(int i) {
+        if(states[i] == AntState.RETURNING_HOME && nest.isInsideNest(posX[i], posY[i])) {    
             directions[i] += Math.PI; // turn around
             states[i] = AntState.SEARCHING_FOR_FOOD;
             currentPheromoneDepositAmount[i] = maxPheromoneDepositAmount;
         }
-}
+    
+    }
 
 
     private void depositPhreomone(int i) {
@@ -73,12 +90,11 @@ public class Ants {
         if (states[i] == AntState.SEARCHING_FOR_FOOD) {
             pheromones.depositToHomePheromone(x, y, currentPheromoneDepositAmount[i]);
         } else if (states[i] == AntState.RETURNING_HOME) {
-            // deposit food pheromone
            pheromones.depositToFoodPheromone(x, y, currentPheromoneDepositAmount[i]);
         }
-
-        currentPheromoneDepositAmount[i] *= (1 - pheremonDepositDecayRate);
         
+        // decay for every step away from pheremone target
+        currentPheromoneDepositAmount[i] *= (1 - pheremonDepositDecayRate);
     }
 
 
@@ -86,20 +102,62 @@ public class Ants {
         double sensorDistance = 20.0;
         double sensorOffsetAngle = Math.PI / 6;
         
-        // get strength of pheremones in straight direction
-        PheromoneType type = (states[index] == AntState.SEARCHING_FOR_FOOD) ? PheromoneType.TO_FOOD : PheromoneType.TO_HOME;
+        double[] centerSensorPos = getSensorPosition(index, 0, sensorDistance);
+        double[] leftSensorPos = getSensorPosition(index, -sensorOffsetAngle, sensorDistance);
+        double[] rightSensorPos = getSensorPosition(index, sensorOffsetAngle, sensorDistance);
 
-        double centerSensor = getPheremoneIntensityAt(index, 0, sensorDistance, type);
-        double leftSensor = getPheremoneIntensityAt(index, -sensorOffsetAngle, sensorDistance, type);
-        double rightSensor = getPheremoneIntensityAt(index, sensorOffsetAngle, sensorDistance, type);
+        double centerSensorPheromoneIntesity;
+        double leftSensorPheromoneIntesity;
+        double rightSensorPheromoneIntesity;
+        
+        // check for food or nest
+        if(states[index] == AntState.SEARCHING_FOR_FOOD) {
+            boolean centerSensorOnFood = isOnFoodSource(centerSensorPos[0], centerSensorPos[1]);
+            boolean leftSensorOnFood = isOnFoodSource(leftSensorPos[0], leftSensorPos[1]);
+            boolean rightSensorOnFood = isOnFoodSource(rightSensorPos[0], rightSensorPos[1]);
+            
+            if(centerSensorOnFood || leftSensorOnFood || rightSensorOnFood) {
+                // steer towards food
+                if(leftSensorOnFood && !rightSensorOnFood) {
+                    directions[index] -= steeringStrength;
+                } else if(rightSensorOnFood && !leftSensorOnFood) {
+                    directions[index] += steeringStrength;
+                }
+                // if both or center just go straight
+                return;
+            }
 
+            centerSensorPheromoneIntesity = pheromones.getFoodPheromone((int) centerSensorPos[0], (int) centerSensorPos[1]);
+            leftSensorPheromoneIntesity = pheromones.getFoodPheromone((int) leftSensorPos[0], (int) leftSensorPos[1]);
+            rightSensorPheromoneIntesity = pheromones.getFoodPheromone((int) rightSensorPos[0], (int) rightSensorPos[1]);
+
+        }else { // RETURNING_HOME 
+            boolean centerSensorOnNest = nest.isInsideNest(centerSensorPos[0], centerSensorPos[1]);
+            boolean leftSensorOnNest = nest.isInsideNest(leftSensorPos[0], leftSensorPos[1]);
+            boolean rightSensorOnNest = nest.isInsideNest(rightSensorPos[0], rightSensorPos[1]);
+            
+            if(centerSensorOnNest || leftSensorOnNest || rightSensorOnNest) {
+                // steer towards nest
+                if(leftSensorOnNest && !rightSensorOnNest) {
+                    directions[index] -= steeringStrength;
+                } else if(rightSensorOnNest && !leftSensorOnNest) {
+                    directions[index] += steeringStrength;
+                }
+                // if both or center just go straight
+                return;
+            }
+
+            centerSensorPheromoneIntesity = pheromones.getHomePheromone((int) centerSensorPos[0], (int) centerSensorPos[1]);
+            leftSensorPheromoneIntesity = pheromones.getHomePheromone((int) leftSensorPos[0], (int) leftSensorPos[1]);
+            rightSensorPheromoneIntesity = pheromones.getHomePheromone((int) rightSensorPos[0], (int) rightSensorPos[1]);
+        }
+
+    
         double steeringDirection = 0;
 
-        if(leftSensor > centerSensor && leftSensor > rightSensor) {
-            // Turn left
+        if(leftSensorPheromoneIntesity > centerSensorPheromoneIntesity && leftSensorPheromoneIntesity > rightSensorPheromoneIntesity) {
             steeringDirection -= steeringStrength;
-        } else if(rightSensor > centerSensor && rightSensor > leftSensor) {
-            // Turn right
+        } else if(rightSensorPheromoneIntesity > centerSensorPheromoneIntesity && rightSensorPheromoneIntesity > leftSensorPheromoneIntesity) {
             steeringDirection += steeringStrength;
         }
         // if center is strongest go straigt
@@ -111,21 +169,17 @@ public class Ants {
         directions[index] += randomWiggle + steeringDirection;
     }
 
-    private double getPheremoneIntensityAt(int index, double sensorAngleOffset, double sensorDistance, PheromoneType type) {
-        
 
+
+    public double[] getSensorPosition(int index, double sensorAngleOffset, double sensorDistance) {
         double sensorAngle = directions[index] + sensorAngleOffset;
-        int sensorX = (int) (posX[index] + Math.cos(sensorAngle) * sensorDistance);
-        int sensorY = (int) (posY[index] + Math.sin(sensorAngle) * sensorDistance);
+        double sensorX = (posX[index] + Math.cos(sensorAngle) * sensorDistance);
+        double sensorY = (posY[index] + Math.sin(sensorAngle) * sensorDistance);
 
         sensorX = (sensorX + Simulation.WIDTH) % Simulation.WIDTH;
         sensorY = (sensorY + Simulation.HEIGHT) % Simulation.HEIGHT;
 
-        if(type == PheromoneType.TO_FOOD) {
-            return pheromones.getFoodPheromone(sensorX, sensorY);
-        } else {
-            return pheromones.getHomePheromone(sensorX, sensorY);
-        }
+        return new double[] { sensorX, sensorY };
     }
 
     public AntState[] getStates() {
