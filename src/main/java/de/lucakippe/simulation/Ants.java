@@ -12,13 +12,7 @@ enum Direction {
     UP_LEFT,
 }
 
-enum AntState {
-    SEARCHING_FOR_FOOD,
-    RETURNING_HOME,
-}
 
-
-// ... (Direction enum is fine)
 
 public class Ants {
     private Pheromones pheromones;
@@ -50,20 +44,20 @@ public class Ants {
         move();
         checkForFood();
         depositPhreomones();
-        
+       
     }
 
     private void checkForFood() {
     for(int i = 0; i < Simulation.NUM_ANTS; i++) {
         // simple radius check
         if (states[i] == AntState.SEARCHING_FOR_FOOD &&
-            Math.abs(posX[i] - 200) <= 20 && Math.abs(posY[i] - 200) <= 20) {
+            Math.abs(posX[i] - 200) <= 10 && Math.abs(posY[i] - 200) <= 10) {
             System.out.println( i + "Found FOOD");
             states[i] = AntState.RETURNING_HOME;
             turn(i, 4);
              System.out.println(i + states[i].toString());
         } else if (states[i] == AntState.RETURNING_HOME &&
-            Math.abs(posX[i] - 300) <= 20 && Math.abs(posY[i] - 300) <= 20) {
+            Math.abs(posX[i] - 300) <= 10 && Math.abs(posY[i] - 300) <= 10) {
                 System.out.println("Got Home");
                 turn(i, 4);
             states[i] = AntState.SEARCHING_FOR_FOOD;
@@ -99,21 +93,35 @@ public class Ants {
         // final double homePheromoneSensingStrength = 10.0;
         // final double foodPheromoneSensingStrength = 10.0;
         
-        final double baseStraightStrength = 7;
+        final double baseStraightStrength = 10;
         final double baseSideStrength = 1;
 
         // get strength of pheremones in straight direction
         PheromoneType type = (states[index] == AntState.SEARCHING_FOR_FOOD) ? PheromoneType.TO_FOOD : PheromoneType.TO_HOME;
 
+
         double inFrontPheromone = getPheromoneAtDirection(posX[index], posY[index], directions[index], type);
         double leftPheromone = getPheromoneAtDirection(posX[index], posY[index], Direction.values()[((directions[index].ordinal() + 7) % 8)], type);
         double rightPheromone = getPheromoneAtDirection(posX[index], posY[index], Direction.values()[((directions[index].ordinal() + 9) % 8)], type);
+
+        double total = inFrontPheromone + leftPheromone + rightPheromone;
+        if(total > 0) {
+            double r = Math.random() * total;
+            if (r < inFrontPheromone) {
+            }else if (r < inFrontPheromone + leftPheromone) {
+                // turn left
+                turn(index, -1);
+            } else {
+                // turn right
+                turn(index, 1);
+            }
+            return;
+        }
         
-        double total = inFrontPheromone + leftPheromone + rightPheromone + baseStraightStrength + 2 * baseSideStrength;
-        double r = Math.random() * total;
-        if (r < inFrontPheromone + baseStraightStrength) {
+        double r = Math.random() * baseStraightStrength + 2 * baseSideStrength;
+        if (r < baseStraightStrength) {
             // go straight
-        } else if (r < inFrontPheromone + leftPheromone + baseStraightStrength + baseSideStrength) {
+        } else if (r < baseStraightStrength + baseSideStrength) {
             // turn left
             turn(index, -1);
         } else {
@@ -148,6 +156,10 @@ public class Ants {
     }
 
     return 0;
+}
+
+public AntState[] getStates() {
+    return states;
 }
 
 

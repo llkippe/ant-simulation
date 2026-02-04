@@ -4,7 +4,7 @@ package de.lucakippe.simulation;
 public class Simulation {
     final static int WIDTH = 400;
     final static int HEIGHT = 400;
-    final static int NUM_ANTS = 1000;
+    final static int NUM_ANTS = 500;
 
     private int stepCount = 0;
 

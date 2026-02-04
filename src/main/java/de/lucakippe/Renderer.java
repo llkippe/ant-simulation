@@ -1,6 +1,7 @@
 package de.lucakippe;
 
 import de.lucakippe.simulation.Simulation;
+import de.lucakippe.simulation.AntState;
 import processing.core.PApplet;
 
 public class Renderer extends PApplet {
@@ -62,10 +63,19 @@ public class Renderer extends PApplet {
         var antsData = sim.getAnts();
         int[] xs = antsData.getPosX();
         int[] ys = antsData.getPosY();
+        AntState[] states = antsData.getStates();
+    
+for (int i = 0; i < antsData.getNumAnts(); i++) {
+    if (states[i] == AntState.SEARCHING_FOR_FOOD) {
+ 
 
-        for (int i = 0; i < antsData.getNumAnts(); i++) {
-            point(xs[i], ys[i]);
-        }
+        fill(255);
+    } else {
+        fill(0, 255, 0);
+    }
+    point(xs[i], ys[i]);
+}
+
 
         // 3. Draw Home and Food markers
         noStroke();
