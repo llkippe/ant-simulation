@@ -1,9 +1,13 @@
 package de.lucakippe.simulation;
 
 public class Food {
-    int posX;
-    int posY;
-    int radius; // durchmesser
+    private static int nextId = 0;
+
+
+    private final int id;
+    private final int posX;
+    private final int posY;
+    private final int radius; // durchmesser
 
     int createdAtStep; 
 
@@ -12,6 +16,7 @@ public class Food {
         this.posX = posX;
         this.posY = posY;
         this.radius = size;
+        this.id = nextId++;
 
         this.createdAtStep = Simulation.stepCount;
     }
@@ -25,6 +30,14 @@ public class Food {
     public int getRadius() {
         return radius;    
     }
+    public int getCreatedAtStep() {
+        return createdAtStep;
+    }
+    public int getId() {
+        return id;
+    }
+
+
 
     public boolean isInsideFood(double x, double y) {
     double dx = x - posX;

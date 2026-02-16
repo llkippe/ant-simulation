@@ -7,8 +7,8 @@ public class Pheromones {
     private double[] homeGrid;
     private double[] foodGrid;
 
-    final static double DIFFUSION_RATE = 0.1;
-    final static double EVAPORATION_RATE = 0.01;
+    final static double DIFFUSION_RATE = 0.03;
+    final static double EVAPORATION_RATE = 0.02;
 
    
 

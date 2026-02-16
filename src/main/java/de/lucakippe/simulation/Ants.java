@@ -1,5 +1,6 @@
 package de.lucakippe.simulation;
 
+import java.util.Random;
 
 public class Ants {
     private Pheromones pheromones;
@@ -10,12 +11,15 @@ public class Ants {
     private double[] directions; // from 0 to 2PI
     private AntState[] states;
     private double speed = 1.0;
-    private double wanderStrength = 0.5; // in radians (random value between -wanderStrength/2 and +wanderStrength/2)
+    private double wanderStrength = 0.6; // in radians (random value between -wanderStrength/2 and +wanderStrength/2)
     private double steeringStrength = 0.1; // in radians;
 
     private double maxPheromoneDepositAmount = 1.0;
     private double[] currentPheromoneDepositAmount;
-    private double pheremonDepositDecayRate = 0.01;
+    private double pheremonDepositDecayRate = 0.05;
+
+    private double sensorDistance = 15.0;
+    private double sensorOffsetAngle = Math.PI / 7;
     
     private Nest nest;
     private Food[] foodSources;
@@ -99,8 +103,7 @@ public class Ants {
 
 
     private void steerAnt(int index) {
-        double sensorDistance = 20.0;
-        double sensorOffsetAngle = Math.PI / 6;
+        
         
         double[] centerSensorPos = getSensorPosition(index, 0, sensorDistance);
         double[] leftSensorPos = getSensorPosition(index, -sensorOffsetAngle, sensorDistance);

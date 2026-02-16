@@ -18,7 +18,7 @@ public class Renderer extends PApplet {
 
     @Override
     public void settings() {
-        size(600, 600, P2D);
+        size(800, 800, P2D);
     }
 
     @Override
@@ -45,8 +45,10 @@ public class Renderer extends PApplet {
             float food = (float) sim.getPheromones().getFoodPheromone(x, y);
             float home = (float) sim.getPheromones().getHomePheromone(x, y);
 
-            int r = (int) Math.min(255, food * 120); 
-            int b = (int) Math.min(255, home * 60);
+            int r = (int) Math.min(255, food * 255); 
+            if(food > 0) r = 255;
+            int b = (int) Math.min(255, home * 255);
+            if (home > 0) b = 255;
 
             pheromoneMap.pixels[i] = (255 << 24) | (r << 16) | (0 << 8) | b;
         }
