@@ -19,6 +19,7 @@ public class Renderer extends PApplet {
     @Override
     public void settings() {
         size(800, 800, P2D);
+        noSmooth(); 
     }
 
     @Override
@@ -54,7 +55,7 @@ public class Renderer extends PApplet {
         }
         pheromoneMap.updatePixels();
 
-        noSmooth(); 
+        
         image(pheromoneMap, 0, 0, width, height);
         
         // DRAW ANTS
@@ -67,9 +68,9 @@ public class Renderer extends PApplet {
         strokeWeight(3 * scaleX); // Scale ant size slightly too
         for (int i = 0; i < antsData.getNumAnts(); i++) {
             if (states[i] == AntState.SEARCHING_FOR_FOOD) {
-                stroke(255); // White searching
+                stroke(50, 50, 255, 100); // White searching
             } else {
-                stroke(0, 255, 0); // Green returning
+               stroke(255,50,50, 100);// Green returning
             }
             // Multiply sim position by scale factor to place on screen
             point((float)xs[i] * scaleX, (float)ys[i] * scaleY);

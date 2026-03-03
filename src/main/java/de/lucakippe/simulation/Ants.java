@@ -10,31 +10,38 @@ public class Ants {
     private double[] posY;
     private double[] directions; // from 0 to 2PI
     private AntState[] states;
-    private double speed = 1.0;
-    private double wanderStrength = 0.6; // in radians (random value between -wanderStrength/2 and +wanderStrength/2)
-    private double steeringStrength = 0.1; // in radians;
+    private int[] carryingFoodFromSourceId; // -1 if not carrying food, otherwise the id of the food source the food is from
+    private int[] stepsSinceLastTarget;
 
-    private double maxPheromoneDepositAmount = 1.0;
+    private double speed = 1.0;
+    private double wanderStrength = 0.5; // in radians (random value between -wanderStrength/2 and +wanderStrength/2)
+    private double steeringStrength = 0.08; // in radians;
+
+    private double maxPheromoneDepositAmount = 1.5;
     private double[] currentPheromoneDepositAmount;
-    private double pheremonDepositDecayRate = 0.05;
+    private double pheremonDepositDecayRate = 0.01;
 
     private double sensorDistance = 15.0;
     private double sensorOffsetAngle = Math.PI / 7;
     
     private Nest nest;
+    private MetricsManager metricsManager;
     private Food[] foodSources;
 
 
-    public Ants(Pheromones pheromones, Nest nest, Food[] foodSources) {
+    public Ants(Pheromones pheromones, Nest nest, Food[] foodSources, MetricsManager metricsManager) {
         this.pheromones = pheromones;
         this.nest = nest;
         this.foodSources = foodSources;
+        this.metricsManager = metricsManager;
 
         this.posX = new double[Simulation.NUM_ANTS];
         this.posY = new double[Simulation.NUM_ANTS];
         this.directions = new double[Simulation.NUM_ANTS];
         this.states = new AntState[Simulation.NUM_ANTS];
         this.currentPheromoneDepositAmount = new double[Simulation.NUM_ANTS];
+        this.carryingFoodFromSourceId = new int[Simulation.NUM_ANTS];
+        this.stepsSinceLastTarget = new int[Simulation.NUM_ANTS];
 
         for(int i = 0; i < Simulation.NUM_ANTS; i++) {
             posX[i] = nest.getPosX();
@@ -42,6 +49,8 @@ public class Ants {
             directions[i] = Math.random() * 2 * Math.PI;
             states[i] = AntState.SEARCHING_FOR_FOOD;
             currentPheromoneDepositAmount[i] = maxPheromoneDepositAmount;
+            carryingFoodFromSourceId[i] = -1; 
+            stepsSinceLastTarget[i] = 0;
         }
     }
 
@@ -58,30 +67,41 @@ public class Ants {
        
     }
 
-    private void checkForFoodSources(int i) {
+    private void checkForFoodSources(int index) {
         // simple radius check
-        if (states[i] == AntState.SEARCHING_FOR_FOOD && isOnFoodSource(posX[i], posY[i])) {
-            states[i] = AntState.RETURNING_HOME;
-            directions[i] += Math.PI; // turn around
-            currentPheromoneDepositAmount[i] = maxPheromoneDepositAmount;
+        int foodSourceId = isOnFoodSource(posX[index], posY[index]);
+        if (states[index] == AntState.SEARCHING_FOR_FOOD && foodSourceId != -1) {
+            states[index] = AntState.RETURNING_HOME;
+            directions[index] += Math.PI; // turn around
+            currentPheromoneDepositAmount[index] = maxPheromoneDepositAmount;
+            carryingFoodFromSourceId[index] = foodSourceId;
+            metricsManager.reportStepsToFood(stepsSinceLastTarget[index]);
+            stepsSinceLastTarget[index] = 0;
         }
     }
 
-    private boolean isOnFoodSource(double posX, double posY) {
+    private int isOnFoodSource(double posX, double posY) {
         for(int f = 0; f < foodSources.length; f++) {
             Food food = foodSources[f];
             if(food.isInsideFood(posX, posY)) {
-                return true;
+                
+                
+                return food.getId();
+
             }
         }
-        return false;
+        return -1;
     }
 
-    private void checkForNest(int i) {
-        if(states[i] == AntState.RETURNING_HOME && nest.isInsideNest(posX[i], posY[i])) {    
-            directions[i] += Math.PI; // turn around
-            states[i] = AntState.SEARCHING_FOR_FOOD;
-            currentPheromoneDepositAmount[i] = maxPheromoneDepositAmount;
+    private void checkForNest(int index) {
+        if(states[index] == AntState.RETURNING_HOME && nest.isInsideNest(posX[index], posY[index])) {    
+            directions[index] += Math.PI; // turn around
+            states[index] = AntState.SEARCHING_FOR_FOOD;
+            currentPheromoneDepositAmount[index] = maxPheromoneDepositAmount;
+            nest.foodBroughtToNest(carryingFoodFromSourceId[index]);
+            carryingFoodFromSourceId[index] = -1;
+            metricsManager.reportStepsToNest(stepsSinceLastTarget[index]);
+            stepsSinceLastTarget[index] = 0;
         }
     
     }
@@ -115,9 +135,9 @@ public class Ants {
         
         // check for food or nest
         if(states[index] == AntState.SEARCHING_FOR_FOOD) {
-            boolean centerSensorOnFood = isOnFoodSource(centerSensorPos[0], centerSensorPos[1]);
-            boolean leftSensorOnFood = isOnFoodSource(leftSensorPos[0], leftSensorPos[1]);
-            boolean rightSensorOnFood = isOnFoodSource(rightSensorPos[0], rightSensorPos[1]);
+            boolean centerSensorOnFood = isOnFoodSource(centerSensorPos[0], centerSensorPos[1]) == -1 ? false : true;
+            boolean leftSensorOnFood = isOnFoodSource(leftSensorPos[0], leftSensorPos[1]) == -1 ? false : true;
+            boolean rightSensorOnFood = isOnFoodSource(rightSensorPos[0], rightSensorPos[1] ) == -1 ? false : true;
             
             if(centerSensorOnFood || leftSensorOnFood || rightSensorOnFood) {
                 // steer towards food
@@ -199,6 +219,8 @@ public class Ants {
 
         posX[index] = (posX[index] + Simulation.WIDTH) % Simulation.WIDTH;
         posY[index] = (posY[index] + Simulation.HEIGHT) % Simulation.HEIGHT;
+
+        stepsSinceLastTarget[index]++;
 
     }
 

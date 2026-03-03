@@ -8,7 +8,10 @@ public class Pheromones {
     private double[] foodGrid;
 
     final static double DIFFUSION_RATE = 0.03;
-    final static double EVAPORATION_RATE = 0.02;
+
+    final static double LINEAR_THRESHHOLD = 0.01;
+    final static double LINEAR_DROPOFF = 0.0001;
+    final static double EVAPORATION_RATE = 0.01;
 
    
 
@@ -18,16 +21,32 @@ public class Pheromones {
     }
 
     void update() {
-        evaporate(); // Evaporate 1% each update
+        evaporate();
         diffuse();
     }
 
     public void evaporate() {
-        for (int i = 0; i < homeGrid.length; i++) {
-            homeGrid[i] *= (1 - EVAPORATION_RATE);
-            foodGrid[i] *= (1 - EVAPORATION_RATE);
+    for (int i = 0; i < homeGrid.length; i++) {
+        // Nur rechnen, wenn überhaupt Pheromon da ist
+        if (homeGrid[i] > 0) {
+            if (homeGrid[i] > LINEAR_THRESHHOLD) {
+                homeGrid[i] *= (1 - EVAPORATION_RATE);
+            } else {
+                homeGrid[i] -= LINEAR_DROPOFF;
+            }
+            if (homeGrid[i] < 0) homeGrid[i] = 0; // Sicherstellen, dass es nicht negativ wird
+        }
+
+        if (foodGrid[i] > 0) {
+            if (foodGrid[i] > LINEAR_THRESHHOLD) {
+                foodGrid[i] *= (1 - EVAPORATION_RATE);
+            } else {
+                foodGrid[i] -= LINEAR_DROPOFF;
+            }
+            if (foodGrid[i] < 0) foodGrid[i] = 0;
         }
     }
+}
 
     public void diffuse() {
         // 1. Create temporary arrays to store the results

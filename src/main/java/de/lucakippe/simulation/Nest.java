@@ -1,9 +1,15 @@
 package de.lucakippe.simulation;
 
+import java.util.HashMap;
+
 public class Nest {
     int posX;
     int posY;
     int radius; // durchmesser
+
+
+    private HashMap<Integer, Integer> foodCountPerSource = new HashMap<>();
+    
 
     public Nest(int posX, int posY, int size) {
         this.posX = posX;
@@ -21,6 +27,14 @@ public class Nest {
         return radius;    
     }
 
+
+    public void foodBroughtToNest(int foodSourceId) {
+        foodCountPerSource.put(foodSourceId, foodCountPerSource.getOrDefault(foodSourceId, 0) + 1);
+    }
+
+    public HashMap<Integer, Integer> getFoodPerSourceMap() {
+        return new HashMap<>(foodCountPerSource);
+    }
     
 
     public boolean isInsideNest(double x, double y) {

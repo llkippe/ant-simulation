@@ -18,20 +18,23 @@ public class Simulation {
     private static final int MIN_DIST_TO_FOOD = 80;
     private int foodSourceSize = 13;
     private Food[] foodSources;
+
+    MetricsManager metricsManager;
     
 
     private Pheromones pheromones;
 
     
     public Simulation() {
+        metricsManager = new MetricsManager();
         nest = new Nest(300, 300, 20);
-        foodSources = new Food[2];
+        foodSources = new Food[3];
         for (int i = 0; i < foodSources.length; i++) {
             foodSources[i] = createRandomFoodSource();
         }
         
         pheromones = new Pheromones();
-        ants = new Ants(pheromones, nest, foodSources);
+        ants = new Ants(pheromones, nest, foodSources,metricsManager);
     }
 
     public void update() {
@@ -42,6 +45,8 @@ public class Simulation {
         if(stepCount % 2000 == 0) {
             replaceOldestFoodSource();
         }
+
+        metricsManager.update(stepCount, nest);
     }
 
     public void replaceOldestFoodSource() {
@@ -53,6 +58,8 @@ public class Simulation {
                 oldestIndex = i;
             }
         }
+        
+        metricsManager.reportSourceDeleted(foodSources[oldestIndex].getId(), stepCount);
 
         foodSources[oldestIndex] = createRandomFoodSource();
     }
@@ -88,7 +95,9 @@ public class Simulation {
 
             if (tooClose) continue;
 
-            return new Food(posX, posY, foodSourceSize);
+            Food newFood = new Food(posX, posY, foodSourceSize); 
+            metricsManager.reportSourceCreated(newFood.getId(), stepCount);
+            return newFood;
         }
 
         // fallback if map is crowded
