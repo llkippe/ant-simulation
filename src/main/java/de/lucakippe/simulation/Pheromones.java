@@ -13,6 +13,8 @@ public class Pheromones {
     final static double LINEAR_DROPOFF = 0.0001;
     final static double EVAPORATION_RATE = 0.01;
 
+    final static double MAX_PHEROMONE_STRENGTH = 4.0;
+
    
 
     public Pheromones() {
@@ -27,8 +29,10 @@ public class Pheromones {
 
     public void evaporate() {
     for (int i = 0; i < homeGrid.length; i++) {
-        // Nur rechnen, wenn überhaupt Pheromon da ist
         if (homeGrid[i] > 0) {
+
+            if(homeGrid[i] > MAX_PHEROMONE_STRENGTH) homeGrid[i] = MAX_PHEROMONE_STRENGTH;
+
             if (homeGrid[i] > LINEAR_THRESHHOLD) {
                 homeGrid[i] *= (1 - EVAPORATION_RATE);
             } else {
@@ -38,6 +42,8 @@ public class Pheromones {
         }
 
         if (foodGrid[i] > 0) {
+            if(foodGrid[i] > MAX_PHEROMONE_STRENGTH) foodGrid[i] = MAX_PHEROMONE_STRENGTH;
+
             if (foodGrid[i] > LINEAR_THRESHHOLD) {
                 foodGrid[i] *= (1 - EVAPORATION_RATE);
             } else {

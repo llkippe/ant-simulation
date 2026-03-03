@@ -1,20 +1,9 @@
-make a new  random nest
--> every 2000 steps e.g
 
-
-
-
-mache bild der verbreitung von pheromonen aktuell. 
-
-
-
-verbesserung finden unerkannter nests.
-- 3x3 sampling rate an jedem sensor
-- weighted steering 
-Lösung: Nutze einen gewichteten Mittelwert oder eine Steering-Formel. Ein sanfterer Ansatz berechnet die Lenkstärke basierend auf der Differenz zwischen den Sensoren:$$\text{Steering} = \frac{\text{Left} - \text{Right}}{\text{Left} + \text{Right} + \text{Center}} \cdot \text{steeringStrength}$$Dies sorgt dafür, dass die Ameise nur leicht korrigiert, wenn die Unterschiede gering sind, und hart einschlägt, wenn eine Seite deutlich dominiert.
 
 - evtl einfuerhung topping-off-deposition limit. (defeniertere pfade).
 - zu hohe pfad treue -> wander strehngth ohoher
+
+
 - oder 5 - 10 % sind scout ameisen mit hoeher wander strehngtrh und wenig reaktion auf pheremone
 
 

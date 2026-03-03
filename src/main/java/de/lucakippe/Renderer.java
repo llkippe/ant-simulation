@@ -63,14 +63,18 @@ public class Renderer extends PApplet {
         var antsData = sim.getAnts();
         double[] xs = antsData.getPosX();
         double[] ys = antsData.getPosY();
+        boolean[] isScout = antsData.getIsScout();
         AntState[] states = antsData.getStates();
 
         strokeWeight(3 * scaleX); // Scale ant size slightly too
         for (int i = 0; i < antsData.getNumAnts(); i++) {
             if (states[i] == AntState.SEARCHING_FOR_FOOD) {
-                stroke(50, 50, 255, 100); // White searching
+                if(isScout[i]) stroke(55, 55, 255, 255);
+                else stroke(50, 50, 255, 100); // White searching
+
             } else {
-               stroke(255,50,50, 100);// Green returning
+                if(isScout[i]) stroke(255,55,55, 255);
+               else stroke(255,50,50, 100);// Green returning
             }
             // Multiply sim position by scale factor to place on screen
             point((float)xs[i] * scaleX, (float)ys[i] * scaleY);

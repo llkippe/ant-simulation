@@ -1,7 +1,5 @@
 package de.lucakippe.simulation;
 
-import java.util.Random;
-
 public class Ants {
     private Pheromones pheromones;
     
@@ -12,12 +10,14 @@ public class Ants {
     private AntState[] states;
     private int[] carryingFoodFromSourceId; // -1 if not carrying food, otherwise the id of the food source the food is from
     private int[] stepsSinceLastTarget;
+    private boolean[] isScout;
 
     private double speed = 1.0;
-    private double wanderStrength = 0.5; // in radians (random value between -wanderStrength/2 and +wanderStrength/2)
-    private double steeringStrength = 0.15; // in radians;
+    private double wanderStrength = 0.4; // in radians (random value between -wanderStrength/2 and +wanderStrength/2)
+    private double steeringStrength = 0.1; // in radians;
 
     private double maxPheromoneDepositAmount = 1.5;
+    private double maxPheromoneDepositAmountScoutOnFood = 5.0;
     private double[] currentPheromoneDepositAmount;
     private double pheremonDepositDecayRate = 0.01;
 
@@ -42,6 +42,7 @@ public class Ants {
         this.currentPheromoneDepositAmount = new double[Simulation.NUM_ANTS];
         this.carryingFoodFromSourceId = new int[Simulation.NUM_ANTS];
         this.stepsSinceLastTarget = new int[Simulation.NUM_ANTS];
+        this.isScout = new boolean[Simulation.NUM_ANTS];
 
         for(int i = 0; i < Simulation.NUM_ANTS; i++) {
             posX[i] = nest.getPosX();
@@ -51,6 +52,8 @@ public class Ants {
             currentPheromoneDepositAmount[i] = maxPheromoneDepositAmount;
             carryingFoodFromSourceId[i] = -1; 
             stepsSinceLastTarget[i] = 0;
+            if(i < Simulation.NUM_ANTS * Simulation.PERCENT_SCOUT_ANTS) isScout[i] = true;
+            else isScout[i] = false;
         }
     }
 
@@ -63,8 +66,6 @@ public class Ants {
             checkForNest(i);
             depositPhreomone(i);
         }
-    
-       
     }
 
     private void checkForFoodSources(int index) {
@@ -74,6 +75,7 @@ public class Ants {
             states[index] = AntState.RETURNING_HOME;
             directions[index] += Math.PI; // turn around
             currentPheromoneDepositAmount[index] = maxPheromoneDepositAmount;
+            if(isScout[index]) currentPheromoneDepositAmount[index] = maxPheromoneDepositAmountScoutOnFood;
             carryingFoodFromSourceId[index] = foodSourceId;
             metricsManager.reportStepsToFood(stepsSinceLastTarget[index]);
             stepsSinceLastTarget[index] = 0;
@@ -127,9 +129,9 @@ public class Ants {
         double[] centerPos = getSensorPosition(index, 0, sensorDistance);
         double[] rightPos = getSensorPosition(index, sensorOffsetAngle, sensorDistance);
 
-        double leftI = getAverageIntensity3x3(leftPos[0], leftPos[1], states[index]);
-        double centerI = getAverageIntensity3x3(centerPos[0], centerPos[1], states[index]);
-        double rightI = getAverageIntensity3x3(rightPos[0], rightPos[1], states[index]);
+        double leftI = getAverageIntensity3x3(leftPos[0], leftPos[1], states[index], isScout[index]);
+        double centerI = getAverageIntensity3x3(centerPos[0], centerPos[1], states[index],isScout[index]);
+        double rightI = getAverageIntensity3x3(rightPos[0], rightPos[1], states[index],isScout[index]);
 
         double total = leftI + centerI + rightI;
         double steeringDirection = 0;
@@ -147,7 +149,7 @@ public class Ants {
     }
 
     // extrem boost to go to nest or food source
-    private double getAverageIntensity3x3(double x, double y, AntState state) {
+    private double getAverageIntensity3x3(double x, double y, AntState state, boolean isScout) {
         double sum = 0;
         double TARGET_BOOST = 1000.0; // Ein extrem hoher Wert für das Ziel
 
@@ -158,7 +160,7 @@ public class Ants {
 
                 if (state == AntState.SEARCHING_FOR_FOOD) {
                     if (isOnFoodSource(sx, sy) != -1) sum += TARGET_BOOST;
-                    else sum += pheromones.getFoodPheromone(sx, sy);
+                    else if(!isScout) sum += pheromones.getFoodPheromone(sx, sy);
                 
                 } else { // RETURNING_HOME
                     if (nest.isInsideNest(sx, sy)) sum += TARGET_BOOST;
@@ -203,6 +205,7 @@ public class Ants {
 
     public double[] getPosX() { return posX; }
     public double[] getPosY() { return posY; }
+    public boolean[] getIsScout() { return isScout; }
     public int getNumAnts() { return Simulation.NUM_ANTS; }
 
 }
