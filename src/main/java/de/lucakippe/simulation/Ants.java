@@ -15,7 +15,7 @@ public class Ants {
 
     private double speed = 1.0;
     private double wanderStrength = 0.5; // in radians (random value between -wanderStrength/2 and +wanderStrength/2)
-    private double steeringStrength = 0.08; // in radians;
+    private double steeringStrength = 0.15; // in radians;
 
     private double maxPheromoneDepositAmount = 1.5;
     private double[] currentPheromoneDepositAmount;
@@ -123,76 +123,51 @@ public class Ants {
 
 
     private void steerAnt(int index) {
-        
-        
-        double[] centerSensorPos = getSensorPosition(index, 0, sensorDistance);
-        double[] leftSensorPos = getSensorPosition(index, -sensorOffsetAngle, sensorDistance);
-        double[] rightSensorPos = getSensorPosition(index, sensorOffsetAngle, sensorDistance);
+        double[] leftPos = getSensorPosition(index, -sensorOffsetAngle, sensorDistance);
+        double[] centerPos = getSensorPosition(index, 0, sensorDistance);
+        double[] rightPos = getSensorPosition(index, sensorOffsetAngle, sensorDistance);
 
-        double centerSensorPheromoneIntesity;
-        double leftSensorPheromoneIntesity;
-        double rightSensorPheromoneIntesity;
-        
-        // check for food or nest
-        if(states[index] == AntState.SEARCHING_FOR_FOOD) {
-            boolean centerSensorOnFood = isOnFoodSource(centerSensorPos[0], centerSensorPos[1]) == -1 ? false : true;
-            boolean leftSensorOnFood = isOnFoodSource(leftSensorPos[0], leftSensorPos[1]) == -1 ? false : true;
-            boolean rightSensorOnFood = isOnFoodSource(rightSensorPos[0], rightSensorPos[1] ) == -1 ? false : true;
-            
-            if(centerSensorOnFood || leftSensorOnFood || rightSensorOnFood) {
-                // steer towards food
-                if(leftSensorOnFood && !rightSensorOnFood) {
-                    directions[index] -= steeringStrength;
-                } else if(rightSensorOnFood && !leftSensorOnFood) {
-                    directions[index] += steeringStrength;
-                }
-                // if both or center just go straight
-                return;
-            }
+        double leftI = getAverageIntensity3x3(leftPos[0], leftPos[1], states[index]);
+        double centerI = getAverageIntensity3x3(centerPos[0], centerPos[1], states[index]);
+        double rightI = getAverageIntensity3x3(rightPos[0], rightPos[1], states[index]);
 
-            centerSensorPheromoneIntesity = pheromones.getFoodPheromone((int) centerSensorPos[0], (int) centerSensorPos[1]);
-            leftSensorPheromoneIntesity = pheromones.getFoodPheromone((int) leftSensorPos[0], (int) leftSensorPos[1]);
-            rightSensorPheromoneIntesity = pheromones.getFoodPheromone((int) rightSensorPos[0], (int) rightSensorPos[1]);
-
-        }else { // RETURNING_HOME 
-            boolean centerSensorOnNest = nest.isInsideNest(centerSensorPos[0], centerSensorPos[1]);
-            boolean leftSensorOnNest = nest.isInsideNest(leftSensorPos[0], leftSensorPos[1]);
-            boolean rightSensorOnNest = nest.isInsideNest(rightSensorPos[0], rightSensorPos[1]);
-            
-            if(centerSensorOnNest || leftSensorOnNest || rightSensorOnNest) {
-                // steer towards nest
-                if(leftSensorOnNest && !rightSensorOnNest) {
-                    directions[index] -= steeringStrength;
-                } else if(rightSensorOnNest && !leftSensorOnNest) {
-                    directions[index] += steeringStrength;
-                }
-                // if both or center just go straight
-                return;
-            }
-
-            centerSensorPheromoneIntesity = pheromones.getHomePheromone((int) centerSensorPos[0], (int) centerSensorPos[1]);
-            leftSensorPheromoneIntesity = pheromones.getHomePheromone((int) leftSensorPos[0], (int) leftSensorPos[1]);
-            rightSensorPheromoneIntesity = pheromones.getHomePheromone((int) rightSensorPos[0], (int) rightSensorPos[1]);
-        }
-
-    
+        double total = leftI + centerI + rightI;
         double steeringDirection = 0;
 
-        if(leftSensorPheromoneIntesity > centerSensorPheromoneIntesity && leftSensorPheromoneIntesity > rightSensorPheromoneIntesity) {
-            steeringDirection -= steeringStrength;
-        } else if(rightSensorPheromoneIntesity > centerSensorPheromoneIntesity && rightSensorPheromoneIntesity > leftSensorPheromoneIntesity) {
-            steeringDirection += steeringStrength;
+        if (total > 0) {
+            steeringDirection = ((rightI - leftI) / total) * steeringStrength;
+            // less steering when target ahead
+            if (centerI > leftI && centerI > rightI) {
+                steeringDirection *= 0.2; 
+            }
         }
-        // if center is strongest go straigt
-        
-        
-        // always do random walk
-        double randomWiggle = (Math.random() - 0.5) * wanderStrength;
 
-        directions[index] += randomWiggle + steeringDirection;
+        double randomWiggle = (Math.random() - 0.5) * wanderStrength;
+        directions[index] += steeringDirection + randomWiggle;
     }
 
+    // extrem boost to go to nest or food source
+    private double getAverageIntensity3x3(double x, double y, AntState state) {
+        double sum = 0;
+        double TARGET_BOOST = 1000.0; // Ein extrem hoher Wert für das Ziel
 
+        for (int ox = -1; ox <= 1; ox++) {
+            for (int oy = -1; oy <= 1; oy++) {
+                int sx = (int) (x + ox + Simulation.WIDTH) % Simulation.WIDTH;
+                int sy = (int) (y + oy + Simulation.HEIGHT) % Simulation.HEIGHT;
+
+                if (state == AntState.SEARCHING_FOR_FOOD) {
+                    if (isOnFoodSource(sx, sy) != -1) sum += TARGET_BOOST;
+                    else sum += pheromones.getFoodPheromone(sx, sy);
+                
+                } else { // RETURNING_HOME
+                    if (nest.isInsideNest(sx, sy)) sum += TARGET_BOOST;
+                    else sum += pheromones.getHomePheromone(sx, sy);
+                }
+            }
+        }
+        return sum / 9.0;
+    }
 
     public double[] getSensorPosition(int index, double sensorAngleOffset, double sensorDistance) {
         double sensorAngle = directions[index] + sensorAngleOffset;
