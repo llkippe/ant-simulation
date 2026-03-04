@@ -13,16 +13,16 @@ public class Ants {
     private boolean[] isScout;
 
     private double speed = 1.0;
-    private double wanderStrength = 0.4; // in radians (random value between -wanderStrength/2 and +wanderStrength/2)
-    private double steeringStrength = 0.1; // in radians;
+    private double wanderStrength = 0.3; // in radians (random value between -wanderStrength/2 and +wanderStrength/2)
+    private double steeringStrength = 0.65; // in radians;
 
-    private double maxPheromoneDepositAmount = 1.5;
-    private double maxPheromoneDepositAmountScoutOnFood = 5.0;
+    private double maxPheromoneDepositAmount = 1.0;
+    private double maxPheromoneDepositAmountScoutOnFood = 9.0;
     private double[] currentPheromoneDepositAmount;
-    private double pheremonDepositDecayRate = 0.01;
+    private double pheremonDepositDecayRate = 0.015;
 
-    private double sensorDistance = 15.0;
-    private double sensorOffsetAngle = Math.PI / 7;
+    private double sensorDistance = 25.0;
+    private double sensorOffsetAngle = Math.PI / 5; // 36 grad
     
     private Nest nest;
     private MetricsManager metricsManager;

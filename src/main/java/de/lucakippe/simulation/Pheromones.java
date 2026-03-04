@@ -7,13 +7,13 @@ public class Pheromones {
     private double[] homeGrid;
     private double[] foodGrid;
 
-    final static double DIFFUSION_RATE = 0.01;
+    final static double DIFFUSION_RATE = 0.04;
 
     final static double LINEAR_THRESHHOLD = 0.05;
     final static double LINEAR_DROPOFF = 0.0001;
-    final static double EVAPORATION_RATE = 0.01;
+    final static double EVAPORATION_RATE = 0.015;
 
-    final static double MAX_PHEROMONE_STRENGTH = 4.0;
+    final static double MAX_PHEROMONE_STRENGTH = 15.0;
 
    
 

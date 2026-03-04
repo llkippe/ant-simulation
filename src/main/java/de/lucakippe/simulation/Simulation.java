@@ -6,8 +6,8 @@ import de.lucakippe.util.Util;
 public class Simulation {
     public final static int WIDTH = 600;
     public final static int HEIGHT = 600;
-    final static int NUM_ANTS = 1500;
-    final static double PERCENT_SCOUT_ANTS = 0.1; 
+    final static int NUM_ANTS = 2500;
+    final static double PERCENT_SCOUT_ANTS = 0.15; 
 
     static int stepCount = 0;
 
