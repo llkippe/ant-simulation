@@ -6,7 +6,7 @@ import de.lucakippe.util.Util;
 public class Simulation {
     public final static int WIDTH = 600;
     public final static int HEIGHT = 600;
-    final static int NUM_ANTS = 2500;
+    final static int NUM_ANTS = 1500;
     final static double PERCENT_SCOUT_ANTS = 0.15; 
 
     static int stepCount = 0;
@@ -27,12 +27,14 @@ public class Simulation {
 
     
     public Simulation() {
-        metricsManager = new MetricsManager();
+        
         nest = new Nest(300, 300, 20);
         foodSources = new Food[3];
+        metricsManager = new MetricsManager(nest, foodSources);
         for (int i = 0; i < foodSources.length; i++) {
             foodSources[i] = createRandomFoodSource();
         }
+        
         
         pheromones = new Pheromones();
         ants = new Ants(pheromones, nest, foodSources,metricsManager);

@@ -72,9 +72,12 @@ public class Renderer extends PApplet {
                 if(isScout[i]) stroke(55, 55, 255, 200);
                 else stroke(50, 50, 255, 100); // White searching
 
-            } else {
+            } else if(states[i] == AntState.DISAPPOINTED_RETURNING_HOME){
+                if(isScout[i]) stroke(55,255,55, 200);
+               else stroke(55,255,50, 100);// Green returning
+            } else { // returning home
                 if(isScout[i]) stroke(255,55,55, 200);
-               else stroke(255,50,50, 100);// Green returning
+                else stroke(255,50,50, 100);// Green returning
             }
             // Multiply sim position by scale factor to place on screen
             point((float)xs[i] * scaleX, (float)ys[i] * scaleY);

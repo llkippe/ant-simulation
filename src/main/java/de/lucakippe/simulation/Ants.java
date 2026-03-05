@@ -2,7 +2,7 @@ package de.lucakippe.simulation;
 
 public class Ants {
     private Pheromones pheromones;
-    
+    private boolean depositFoodDepletedPheremone = true;
 
     private double[] posX;
     private double[] posY;
@@ -12,12 +12,19 @@ public class Ants {
     private int[] stepsSinceLastTarget;
     private boolean[] isScout;
 
+    private boolean[] isFollowingStrongPath;
+    private final double STRONG_PATH_THRESHOLD = 6.5;
+    private final int CONFUSED_STEP_INTERVAL = 80;
+    private final double PERCENTAGE_TRIGGER_END_OF_TRAIL = 0.1;
+    private final int[] stepsSinceLeavingStrongPath;
+
+
     private double speed = 1.0;
     private double wanderStrength = 0.3; // in radians (random value between -wanderStrength/2 and +wanderStrength/2)
-    private double steeringStrength = 0.65; // in radians;
+    private double steeringStrength = 0.6; // in radians;
 
     private double maxPheromoneDepositAmount = 1.0;
-    private double maxPheromoneDepositAmountScoutOnFood = 9.0;
+    private double maxPheromoneDepositAmountScoutOnFood = 8.0;
     private double[] currentPheromoneDepositAmount;
     private double pheremonDepositDecayRate = 0.015;
 
@@ -43,6 +50,8 @@ public class Ants {
         this.carryingFoodFromSourceId = new int[Simulation.NUM_ANTS];
         this.stepsSinceLastTarget = new int[Simulation.NUM_ANTS];
         this.isScout = new boolean[Simulation.NUM_ANTS];
+        this.isFollowingStrongPath = new boolean[Simulation.NUM_ANTS];
+        this.stepsSinceLeavingStrongPath = new int[Simulation.NUM_ANTS];
 
         for(int i = 0; i < Simulation.NUM_ANTS; i++) {
             posX[i] = nest.getPosX();
@@ -54,6 +63,8 @@ public class Ants {
             stepsSinceLastTarget[i] = 0;
             if(i < Simulation.NUM_ANTS * Simulation.PERCENT_SCOUT_ANTS) isScout[i] = true;
             else isScout[i] = false;
+            isFollowingStrongPath[i] = false;
+            this.stepsSinceLeavingStrongPath[i] = 0;
         }
     }
 
@@ -77,35 +88,36 @@ public class Ants {
             currentPheromoneDepositAmount[index] = maxPheromoneDepositAmount;
             if(isScout[index]) currentPheromoneDepositAmount[index] = maxPheromoneDepositAmountScoutOnFood;
             carryingFoodFromSourceId[index] = foodSourceId;
-            metricsManager.reportStepsToFood(stepsSinceLastTarget[index]);
+            metricsManager.reportStepsToFood(stepsSinceLastTarget[index], foodSourceId); 
             stepsSinceLastTarget[index] = 0;
+            isFollowingStrongPath[index] = false;
+            stepsSinceLeavingStrongPath[index] = 0;
         }
     }
 
     private int isOnFoodSource(double posX, double posY) {
         for(int f = 0; f < foodSources.length; f++) {
             Food food = foodSources[f];
-            if(food.isInsideFood(posX, posY)) {
-                
-                
-                return food.getId();
-
-            }
+            if(food.isInsideFood(posX, posY)) return food.getId(); 
         }
         return -1;
     }
 
     private void checkForNest(int index) {
-        if(states[index] == AntState.RETURNING_HOME && nest.isInsideNest(posX[index], posY[index])) {    
+        if((states[index] == AntState.RETURNING_HOME || states[index] == AntState.DISAPPOINTED_RETURNING_HOME) && nest.isInsideNest(posX[index], posY[index])) {    
+            
+            if(states[index] == AntState.RETURNING_HOME) {
+            metricsManager.reportStepsToNest(stepsSinceLastTarget[index], carryingFoodFromSourceId[index]);
+            nest.foodBroughtToNest(carryingFoodFromSourceId[index]);
+            }
             directions[index] += Math.PI; // turn around
             states[index] = AntState.SEARCHING_FOR_FOOD;
             currentPheromoneDepositAmount[index] = maxPheromoneDepositAmount;
-            nest.foodBroughtToNest(carryingFoodFromSourceId[index]);
-            carryingFoodFromSourceId[index] = -1;
-            metricsManager.reportStepsToNest(stepsSinceLastTarget[index]);
             stepsSinceLastTarget[index] = 0;
+            carryingFoodFromSourceId[index] = -1;
+            isFollowingStrongPath[index] = false;
+            stepsSinceLeavingStrongPath[index] = 0;
         }
-    
     }
 
 
@@ -117,11 +129,15 @@ public class Ants {
             pheromones.depositToHomePheromone(x, y, currentPheromoneDepositAmount[i]);
         } else if (states[i] == AntState.RETURNING_HOME) {
            pheromones.depositToFoodPheromone(x, y, currentPheromoneDepositAmount[i]);
+        } else if (states[i] == AntState.DISAPPOINTED_RETURNING_HOME && depositFoodDepletedPheremone) {
+            pheromones.depostFoodDepletedPheromone(x, y, currentPheromoneDepositAmount[i]);
         }
         
         // decay for every step away from pheremone target
         currentPheromoneDepositAmount[i] *= (1 - pheremonDepositDecayRate);
     }
+
+    
 
 
     private void steerAnt(int index) {
@@ -134,6 +150,8 @@ public class Ants {
         double rightI = getAverageIntensity3x3(rightPos[0], rightPos[1], states[index],isScout[index]);
 
         double total = leftI + centerI + rightI;
+        detectDisappointment(index, total);
+
         double steeringDirection = 0;
 
         if (total > 0) {
@@ -146,6 +164,25 @@ public class Ants {
 
         double randomWiggle = (Math.random() - 0.5) * wanderStrength;
         directions[index] += steeringDirection + randomWiggle;
+    }
+
+    private void detectDisappointment(int index, double currentPheromoneIntensity) {
+        if (states[index] == AntState.SEARCHING_FOR_FOOD && isScout[index] == false) {
+            if(currentPheromoneIntensity > STRONG_PATH_THRESHOLD) {
+                isFollowingStrongPath[index] = true;                
+            }
+
+            if(isFollowingStrongPath[index]) {
+                stepsSinceLeavingStrongPath[index]++;
+                if(stepsSinceLeavingStrongPath[index] > CONFUSED_STEP_INTERVAL && currentPheromoneIntensity < STRONG_PATH_THRESHOLD * (1 - PERCENTAGE_TRIGGER_END_OF_TRAIL)) {
+                    if(depositFoodDepletedPheremone) {
+                        states[index] = AntState.DISAPPOINTED_RETURNING_HOME;
+                        directions[index] += Math.PI; // turn around
+                    }
+                    metricsManager.reportAntDissapointed();
+                }
+            }
+        }
     }
 
     // extrem boost to go to nest or food source
@@ -162,7 +199,7 @@ public class Ants {
                     if (isOnFoodSource(sx, sy) != -1) sum += TARGET_BOOST;
                     else if(!isScout) sum += pheromones.getFoodPheromone(sx, sy);
                 
-                } else { // RETURNING_HOME
+                } else { // RETURNING_HOME OR RETURNING_HOME_DISSAPOINTED
                     if (nest.isInsideNest(sx, sy)) sum += TARGET_BOOST;
                     else sum += pheromones.getHomePheromone(sx, sy);
                 }

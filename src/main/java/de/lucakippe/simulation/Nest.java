@@ -29,6 +29,7 @@ public class Nest {
 
 
     public void foodBroughtToNest(int foodSourceId) {
+        if(foodSourceId == -1) System.out.println("huch");
         foodCountPerSource.put(foodSourceId, foodCountPerSource.getOrDefault(foodSourceId, 0) + 1);
     }
 

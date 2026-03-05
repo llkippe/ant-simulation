@@ -3,14 +3,19 @@ package de.lucakippe.simulation;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.Files;
+import de.lucakippe.util.*;
 
 public class MetricsManager {
     private Path simulationDataDir;
 
+
     private int interval = 100;
+    private Nest nest;
+    Food[] foodSources;
 
     private PrintWriter sourceMetricsWriter;
     private HashMap<Integer, Integer> lastFoodCountPerSource = new HashMap<>();
@@ -21,13 +26,17 @@ public class MetricsManager {
 
     private PrintWriter globalMetricsWriter;
     private int dissappointmentsInCurrentInterval = 0;
-    private ArrayList<Integer> stepsToFoodList = new ArrayList<>();
-    private ArrayList<Integer> stepsToNestList = new ArrayList<>();
+    private ArrayList<Double> foodPathEfficiencies = new ArrayList<>();
+    private ArrayList<Double> nestPathEfficiencies = new ArrayList<>();
+    private Map<Integer, Double> distanceNestFoodCache = new HashMap<>();   
 
 
    
 
-    MetricsManager() {
+    MetricsManager(Nest nest, Food[] foodSources) {
+        this.nest = nest;
+        this.foodSources = foodSources;
+
         try {
             // Create 'data' directory if it doesn't exist
             Path dataDir = Paths.get("data");
@@ -45,7 +54,7 @@ public class MetricsManager {
             sourceMetricsWriter.println("step,source_id,amount,throughput,creation_step,deletion_step");
 
             globalMetricsWriter = new PrintWriter(simulationDataDir.resolve("global_metrics.csv").toFile());
-            globalMetricsWriter.println("step,avg_steps_to_food,avg_steps_to_nest");
+            globalMetricsWriter.println("step,avg_step_efficeny_to_food,avg_step_efficeny_to_nest,dissapointmentRate");
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -59,29 +68,60 @@ public class MetricsManager {
         writeGlobalMetrics(currentStep);
     }
 
-    public void reportStepsToFood(int pathLength) {
-        stepsToFoodList.add(pathLength);
+
+    private double getCachedDistance(int foodSourceId) {
+        return distanceNestFoodCache.computeIfAbsent(foodSourceId, k -> {
+            for(Food food : foodSources) {
+                if(food.getId() == foodSourceId) {
+                    return Util.dist(food.getPosX(), food.getPosY(), nest.posX, nest.posY); 
+                    
+                }
+            }
+            System.out.println("Didnt find " + foodSourceId);
+            return -1.0;
+        });
     }
-    public void reportStepsToNest(int pathLength) {
-        stepsToNestList.add(pathLength);
+
+    public void reportStepsToFood(int pathLength, int foodSourceId) {
+        double directDist = getCachedDistance(foodSourceId);
+        if (directDist > 0 && pathLength > 0) {
+            foodPathEfficiencies.add(directDist / (double) pathLength);
+        }
     }
-    public float calculateAverage(ArrayList<Integer> list ) {
-        if(list.isEmpty()) return 0;
-        int sum = 0;
-        for(int i : list) sum += i;
-        return (float) sum / list.size();
+
+    public void reportStepsToNest(int pathLength, int comingFromFoodSourceId) {
+        double directDist = getCachedDistance(comingFromFoodSourceId);
+        if (directDist > 0 && pathLength > 0) {
+            nestPathEfficiencies.add(directDist / (double) pathLength);
+        }
     }
+
+    public Double calculateAverage(ArrayList<Double> list ) {
+        if(list.isEmpty()) return 0.0;
+        double sum = 0.0;
+        for(double i : list) sum += i;
+        return (Double) sum / list.size();
+    }
+
+    public void reportAntDissapointed() {
+        dissappointmentsInCurrentInterval++;
+    }
+
+
     public void writeGlobalMetrics(int currentStep) {
-        float avgStepsToFood = calculateAverage(stepsToFoodList);
-        float avgStepsToNest = calculateAverage(stepsToNestList);
+    double avgFoodEfficiency = calculateAverage(foodPathEfficiencies);
+    double avgNestEfficiency = calculateAverage(nestPathEfficiencies);
+    
 
-        globalMetricsWriter.println(currentStep + "," + avgStepsToFood +","  + avgStepsToNest);
-        globalMetricsWriter.flush();
+    // CSV Header suggestion: Step, FoodEfficiency, NestEfficiency, DisappointmentRate
+    globalMetricsWriter.println(currentStep + "," + avgFoodEfficiency + "," + avgNestEfficiency + "," + dissappointmentsInCurrentInterval);
+    globalMetricsWriter.flush();
 
-        stepsToFoodList.clear();
-        stepsToNestList.clear();
-        dissappointmentsInCurrentInterval = 0;
-    }
+    // Resetting for the next interval
+    foodPathEfficiencies.clear();
+    nestPathEfficiencies.clear();
+    dissappointmentsInCurrentInterval = 0;
+}
 
     
 

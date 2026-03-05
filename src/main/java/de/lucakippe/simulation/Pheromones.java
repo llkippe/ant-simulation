@@ -6,6 +6,7 @@ package de.lucakippe.simulation;
 public class Pheromones {
     private double[] homeGrid;
     private double[] foodGrid;
+    private double[] foodDepletedGrid;
 
     final static double DIFFUSION_RATE = 0.04;
 
@@ -13,13 +14,14 @@ public class Pheromones {
     final static double LINEAR_DROPOFF = 0.0001;
     final static double EVAPORATION_RATE = 0.015;
 
-    final static double MAX_PHEROMONE_STRENGTH = 15.0;
+    final static double MAX_PHEROMONE_STRENGTH = 13.0;
 
    
 
     public Pheromones() {
         homeGrid = new double[Simulation.WIDTH * Simulation.HEIGHT];
         foodGrid = new double[Simulation.WIDTH * Simulation.HEIGHT];
+        foodDepletedGrid = new double[Simulation.WIDTH * Simulation.HEIGHT];
     }
 
     void update() {
@@ -51,6 +53,17 @@ public class Pheromones {
             }
             if (foodGrid[i] < 0) foodGrid[i] = 0;
         }
+
+        if(foodDepletedGrid[i] > 0) {
+            if(foodDepletedGrid[i] > MAX_PHEROMONE_STRENGTH) foodDepletedGrid[i] = MAX_PHEROMONE_STRENGTH;
+
+            if (foodDepletedGrid[i] > LINEAR_THRESHHOLD) {
+                foodDepletedGrid[i] *= (1 - EVAPORATION_RATE);
+            } else {
+                foodDepletedGrid[i] -= LINEAR_DROPOFF;
+            }
+            if (foodDepletedGrid[i] < 0) foodDepletedGrid[i] = 0;
+        }
     }
 }
 
@@ -58,6 +71,7 @@ public class Pheromones {
         // 1. Create temporary arrays to store the results
         double[] newHomeGrid = new double[homeGrid.length];
         double[] newFoodGrid = new double[foodGrid.length];
+        double[] newFoodDepletedGrid = new double[foodDepletedGrid.length];
 
         int W = Simulation.WIDTH;
         int H = Simulation.HEIGHT;
@@ -68,6 +82,7 @@ public class Pheromones {
 
             double sumHome = 0;
             double sumFood = 0;
+            double sumFoodDepleted = 0;
 
             // 2. Sample the 3x3 neighborhood (including the center)
             for (int offsetX = -1; offsetX <= 1; offsetX++) {
@@ -80,21 +95,25 @@ public class Pheromones {
 
                     sumHome += homeGrid[neighborIndex];
                     sumFood += foodGrid[neighborIndex];
+                    sumFoodDepleted += foodDepletedGrid[neighborIndex];
                 }
             }
 
             // 4. Calculate the average and apply the rate
             double avgHome = sumHome / 9.0;
             double avgFood = sumFood / 9.0;
+            double avgFoodDepleted = sumFoodDepleted / 9.0;
 
             // Linear interpolation between current value and neighbor average
             newHomeGrid[i] = homeGrid[i] + (avgHome - homeGrid[i]) * DIFFUSION_RATE;
             newFoodGrid[i] = foodGrid[i] + (avgFood - foodGrid[i]) * DIFFUSION_RATE;
+            newFoodDepletedGrid[i] = foodDepletedGrid[i] + (avgFoodDepleted - foodDepletedGrid[i]) * DIFFUSION_RATE;
         }
 
         // 5. Swap the grids
         homeGrid = newHomeGrid;
         foodGrid = newFoodGrid;
+        foodDepletedGrid = newFoodDepletedGrid;
     }   
 
    
@@ -106,6 +125,9 @@ public class Pheromones {
     }
     public void depositToFoodPheromone(int x, int y, double amount) {
         foodGrid[index(x, y)] += amount;
+    }
+    public void depostFoodDepletedPheromone(int x, int y, double amount) {
+        foodDepletedGrid[index(x, y)] += amount;
     }
 
 
