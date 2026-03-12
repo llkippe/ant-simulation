@@ -6,7 +6,6 @@ import java.util.Map;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.Files;
-import de.lucakippe.util.*;
 
 public class MetricsManager {
     private Path simulationDataDir;
@@ -101,7 +100,7 @@ public class MetricsManager {
         return distanceNestFoodCache.computeIfAbsent(foodSourceId, k -> {
             for(Food food : foodSources) {
                 if(food.getId() == foodSourceId) {
-                    return Util.dist(food.getPosX(), food.getPosY(), nest.posX, nest.posY) - food.getRadius() - nest.getRadius();
+                    return Simulation.distWrapped(food.getPosX(), food.getPosY(), nest.posX, nest.posY) - food.getRadius() - nest.getRadius();
                     
                 }
             }

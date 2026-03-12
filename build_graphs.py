@@ -132,13 +132,13 @@ plt.close(fig1)
 # ==========================================
 fig2, ax2 = plt.subplots(figsize=(16, 6))
 
-ax2.plot(df_global['step'], df_global['avg_step_efficeny_to_food'], color='green', label='Efficiency to Food', lw=2.5)
-ax2.plot(df_global['step'], df_global['avg_step_efficeny_to_nest'], color='blue', label='Efficiency to Nest', lw=2.5)
+ax2.plot(df_global['step'], df_global['avg_step_efficeny_to_food'], color='green', label='Pfadeffizienz zu Futterquellen', lw=2.5)
+ax2.plot(df_global['step'], df_global['avg_step_efficeny_to_nest'], color='blue', label='Pfadeffizienz zurück zum Nest', lw=2.5)
 
 ax2.set_ylim(0, 1.1) 
-ax2.set_ylabel('Efficiency Ratio (1.0 = Linear)', fontsize=12)
-ax2.set_xlabel('Simulation Step', fontsize=12)
-ax2.set_title('Ant Simulation: Global Efficiency & Disappointment', fontsize=16, pad=20)
+ax2.set_ylabel('Pfadeffizienz', fontsize=12)
+ax2.set_xlabel('Simulations Schritt', fontsize=12)
+ax2.set_title('Pfadeffizienz & Enttäuschungsrate', fontsize=16, pad=20)
 ax2.legend(loc='upper left')
 ax2.set_xticks(xticks)
 ax2.grid(True, alpha=0.3)
@@ -146,7 +146,7 @@ ax2.grid(True, alpha=0.3)
 ax3 = ax2.twinx()
 ax3.fill_between(df_global['step'], df_global['dissapointmentRate'], color='red', alpha=0.1)
 ax3.plot(df_global['step'], df_global['dissapointmentRate'], color='red', linestyle='--', alpha=0.4, label='Disappointment')
-ax3.set_ylabel('Disappointment Rate', color='red', fontsize=12)
+ax3.set_ylabel('Enttäuschungsrate', color='red', fontsize=12)
 ax3.tick_params(axis='y', labelcolor='red')
 
 fig2.tight_layout()
@@ -157,7 +157,8 @@ plt.close(fig2)
 # GRAPH 3: BOXPLOTS (Time to Throughput & Efficiency)
 # ==========================================
 # Wir nutzen 1 Reihe, 2 Spalten, damit die Skalierungen nicht kaputt gehen
-fig3, (ax_box1, ax_box2) = plt.subplots(1, 2, figsize=(6, 4))
+fig3, (ax_box1, ax_box2) = plt.subplots(1, 2, figsize=(7, 4))
+
 
 # --- Linker Boxplot: Steps to reach 50 Throughput ---
 if steps_to_reach_convergence_list: # Check if there is data
@@ -166,33 +167,31 @@ if steps_to_reach_convergence_list: # Check if there is data
     for box in bp1['boxes']:
         box.set(facecolor='orange', alpha=0.7)
     
-    ax_box1.set_title('Steps needed to reach Throughput 50', fontsize=10)
-    ax_box1.set_ylabel('Delta (Steps)', fontsize=12)
+    ax_box1.set_title(f'Durchschnittliche Schritte bis Durchsatz > {troughput_convergence}', fontsize=10)
+    ax_box1.set_ylabel('Schritte', fontsize=12)
     ax_box1.set_xticks([1])
-    ax_box1.set_xticklabels(['All Sources'])
+    ax_box1.set_xticklabels(['Alle Futterquellen'])
     ax_box1.grid(axis='y', linestyle='--', alpha=0.5)
-else:
-    ax_box1.text(0.5, 0.5, 'No Source reached Throughput 50', ha='center', va='center', fontsize=12)
-    ax_box1.set_title('Steps needed to reach Throughput 50', fontsize=10)
 
 # --- Rechter Boxplot: Average Efficiency ---
 # Wir werfen NaN werte raus, falls es Lücken in der Simulation gibt
 eff_food = df_global['avg_step_efficeny_to_food'].dropna()
 eff_nest = df_global['avg_step_efficeny_to_nest'].dropna()
 
-bp2 = ax_box2.boxplot([eff_food, eff_nest], patch_artist=True, labels=['To Food', 'To Nest'], widths=0.4)
+bp2 = ax_box2.boxplot([eff_food, eff_nest], patch_artist=True, labels=['Zu Futterquellen', 'Zum Nest'], widths=0.4)
 
 # Style the boxes (Green for Food, Blue for Nest)
 colors_box = ['green', 'blue']
 for patch, color in zip(bp2['boxes'], colors_box):
     patch.set(facecolor=color, alpha=0.5)
 
-ax_box2.set_title('Global Path Efficiency Distribution', fontsize=10)
-ax_box2.set_ylabel('Efficiency Score (0.0 - 1.0)', fontsize=10)
+ax_box2.set_title('Durchschnittliche Pfadeffizienz', fontsize=10)
+ax_box2.set_ylabel('Effizienz der Pfadlänge [∅] (0.0 - 1.0)', fontsize=10)
 ax_box2.set_ylim(-0.05, 1.05)
 ax_box2.grid(axis='y', linestyle='--', alpha=0.5)
 
 fig3.tight_layout()
+plt.subplots_adjust(wspace=0.4) 
 fig3.savefig(out_boxplots_png, bbox_inches='tight')
 plt.close(fig3)
 

@@ -1,7 +1,6 @@
 
 package de.lucakippe.simulation;
 
-import de.lucakippe.util.Util;
 
 public class Simulation {
     public final static int WIDTH = 600;
@@ -104,7 +103,7 @@ public class Simulation {
             
 
             // check nest distance
-            if (Util.dist(posX, posY, nest.posX, nest.posY)
+            if (distWrapped(posX, posY, nest.posX, nest.posY)
                     < MIN_DIST_TO_NEST) {
                 continue;
             }
@@ -115,7 +114,7 @@ public class Simulation {
             for (Food f : foodSources) {
                 if (f == null) continue;
 
-                if (Util.dist(posX, posY, f.getPosX(), f.getPosY())
+                if (distWrapped(posX, posY, f.getPosX(), f.getPosY())
                         < MIN_DIST_BETWEEN_FOODSOURCES) {
                     tooClose = true;
                     break;
@@ -136,6 +135,21 @@ public class Simulation {
             (int)(Math.random() * HEIGHT),
             foodSourceSize
         );
+    }
+
+    public static double distWrapped(int x1, int y1, int x2, int y2) {
+        int dx = Math.abs(x1 - x2);
+        int dy = Math.abs(y1 - y2);
+
+        // Calculate the wrap-around distances
+        int wrappedDx = WIDTH - dx;
+        int wrappedDy = HEIGHT - dy;
+
+        // Use the minimum of the direct and wrap-around distances
+        dx = Math.min(dx, wrappedDx);
+        dy = Math.min(dy, wrappedDy);
+
+        return Math.sqrt(dx * dx + dy * dy);
     }
 
     public Ants getAnts() {
