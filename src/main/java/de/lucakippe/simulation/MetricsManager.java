@@ -1,7 +1,6 @@
 package de.lucakippe.simulation;
 
 import java.io.PrintWriter;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.nio.file.Path;
@@ -12,12 +11,14 @@ import de.lucakippe.util.*;
 public class MetricsManager {
     private Path simulationDataDir;
 
-
-    private int interval = 100;
+    
+    private final int WINDOW_SIZE = 200;
+    private final int INTERVAL = 20;
     private Nest nest;
     Food[] foodSources;
 
     private PrintWriter sourceMetricsWriter;
+    private HashMap<Integer, SlidingWindow> sourceThroughputWindows = new HashMap<>();
     private HashMap<Integer, Integer> lastFoodCountPerSource = new HashMap<>();
     private HashMap<Integer, Integer> sourceCreationSteps = new HashMap<>();
     private HashMap<Integer, Integer> sourceDeletionSteps = new HashMap<>();
@@ -25,9 +26,12 @@ public class MetricsManager {
 
 
     private PrintWriter globalMetricsWriter;
+    
     private int dissappointmentsInCurrentInterval = 0;
-    private ArrayList<Double> foodPathEfficiencies = new ArrayList<>();
-    private ArrayList<Double> nestPathEfficiencies = new ArrayList<>();
+    private SlidingWindow dissapointmentWindow = new SlidingWindow(WINDOW_SIZE);
+
+    private SlidingWindow foodPathWindow = new SlidingWindow(WINDOW_SIZE);
+    private SlidingWindow nestPathWindow = new SlidingWindow(WINDOW_SIZE);
     private Map<Integer, Double> distanceNestFoodCache = new HashMap<>();   
 
 
@@ -63,7 +67,31 @@ public class MetricsManager {
 
 
     public void update(int currentStep, Nest nest) {
-        if(currentStep % interval != 0) return;
+        // jeder step werden sliding windows die ueber steps als zeit arbeiten geupdatet.
+        dissapointmentWindow.tick(dissappointmentsInCurrentInterval);
+        dissappointmentsInCurrentInterval = 0;
+
+        HashMap<Integer, Integer> currentData = nest.getFoodPerSourceMap();
+        for(Integer sourceId : currentData.keySet()) {
+            int currentAmount = currentData.get(sourceId);
+            int lastAmount = lastFoodCountPerSource.getOrDefault(sourceId, 0);
+
+            // Raw throughput im aktuellen Intervall
+            int throughputInInterval = currentAmount - lastAmount;
+            lastFoodCountPerSource.put(sourceId, currentAmount);
+
+            // Sliding Window für diese spezifische Quelle abrufen oder neu erstellen
+            SlidingWindow window = sourceThroughputWindows.computeIfAbsent(
+                sourceId, k -> new SlidingWindow(WINDOW_SIZE)
+            );
+            window.tick(throughputInInterval);
+            
+        }
+        
+
+
+        // nur nach ablauf des intervalls daten schreiben
+        if(currentStep % INTERVAL != 0) return;
         writeSourceMetrics(currentStep, nest);
         writeGlobalMetrics(currentStep);
     }
@@ -73,7 +101,7 @@ public class MetricsManager {
         return distanceNestFoodCache.computeIfAbsent(foodSourceId, k -> {
             for(Food food : foodSources) {
                 if(food.getId() == foodSourceId) {
-                    return Util.dist(food.getPosX(), food.getPosY(), nest.posX, nest.posY); 
+                    return Util.dist(food.getPosX(), food.getPosY(), nest.posX, nest.posY) - food.getRadius() - nest.getRadius();
                     
                 }
             }
@@ -85,22 +113,15 @@ public class MetricsManager {
     public void reportStepsToFood(int pathLength, int foodSourceId) {
         double directDist = getCachedDistance(foodSourceId);
         if (directDist > 0 && pathLength > 0) {
-            foodPathEfficiencies.add(directDist / (double) pathLength);
+            foodPathWindow.addValue(directDist / (double) pathLength);
         }
     }
 
     public void reportStepsToNest(int pathLength, int comingFromFoodSourceId) {
         double directDist = getCachedDistance(comingFromFoodSourceId);
         if (directDist > 0 && pathLength > 0) {
-            nestPathEfficiencies.add(directDist / (double) pathLength);
+            nestPathWindow.addValue(directDist / (double) pathLength);
         }
-    }
-
-    public Double calculateAverage(ArrayList<Double> list ) {
-        if(list.isEmpty()) return 0.0;
-        double sum = 0.0;
-        for(double i : list) sum += i;
-        return (Double) sum / list.size();
     }
 
     public void reportAntDissapointed() {
@@ -109,20 +130,17 @@ public class MetricsManager {
 
 
     public void writeGlobalMetrics(int currentStep) {
-    double avgFoodEfficiency = calculateAverage(foodPathEfficiencies);
-    double avgNestEfficiency = calculateAverage(nestPathEfficiencies);
+        // Prüfen, ob schon Daten da sind (count > 0). Wenn ja: Durchschnitt holen, sonst "NaN"
+        String foodStr = (foodPathWindow.getCount() > 0) ? String.valueOf(foodPathWindow.getAverage()) : "NaN";
+        String nestStr = (nestPathWindow.getCount() > 0) ? String.valueOf(nestPathWindow.getAverage()) : "NaN";
+
+        double avgDisappointmentProStep = dissapointmentWindow.getAverage();
     
+        globalMetricsWriter.println(currentStep + "," + foodStr + "," + nestStr + "," + avgDisappointmentProStep);
+        globalMetricsWriter.flush();
 
-    // CSV Header suggestion: Step, FoodEfficiency, NestEfficiency, DisappointmentRate
-    globalMetricsWriter.println(currentStep + "," + avgFoodEfficiency + "," + avgNestEfficiency + "," + dissappointmentsInCurrentInterval);
-    globalMetricsWriter.flush();
-
-    // Resetting for the next interval
-    foodPathEfficiencies.clear();
-    nestPathEfficiencies.clear();
-    dissappointmentsInCurrentInterval = 0;
-}
-
+        dissappointmentsInCurrentInterval = 0;
+    }
     
 
 
@@ -139,9 +157,17 @@ public class MetricsManager {
         
         for(Integer sourceId : currentData.keySet()) {
             int currentAmount = currentData.get(sourceId);
-            int lastAmount = lastFoodCountPerSource.getOrDefault(sourceId, 0);
-            int throughput = currentAmount - lastAmount;
-            lastFoodCountPerSource.put(sourceId, currentAmount);
+            // int lastAmount = lastFoodCountPerSource.getOrDefault(sourceId, 0);
+
+            // // Raw throughput im aktuellen Intervall
+            // int throughputInInterval = currentAmount - lastAmount;
+            // lastFoodCountPerSource.put(sourceId, currentAmount);
+            // Sliding Window für diese spezifische Quelle abrufen oder neu erstellen
+            SlidingWindow window = sourceThroughputWindows.computeIfAbsent(
+                sourceId, k -> new SlidingWindow(WINDOW_SIZE)
+            );
+            // Geglätteten Durchsatz holen
+            double smoothedThroughput = window.getAverage();
 
             int creationStep = sourceCreationSteps.getOrDefault(sourceId, -1);
             int deletionStep = sourceDeletionSteps.getOrDefault(sourceId, -1);
@@ -150,7 +176,7 @@ public class MetricsManager {
                 currentStep + "," +
                 sourceId + "," +
                 currentAmount + "," +
-                throughput + "," +
+                smoothedThroughput + "," +
                 creationStep + "," +
                 deletionStep
             );

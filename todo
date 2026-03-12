@@ -1,3 +1,37 @@
+vergleiche meheree test laeufe.
+immer gleiche laenge. evtl 10 - 20 laufe pro simulation. avg dieser.
+
+Fragen?
+ - was noch? reicht das fuer eine BA?
+ - implementierung eins gegen pheromones 
+
+ - wie läuft das mit anmelden? ...
+ - was soll man schreieb
+
+
+10 mal laufen lassen
+welche werte? 
+-> zeiten bis food source erschlossen ist
+
+
+
+
+
+
+
+
+save settings relevant settings of run also in file.
+
+ein avg wert der path efficincy.
+wie viele ameisen depleted relativ nutzlos?
+avg wert der zeiten bis troughput erreicht wurde
+
+
+intervall ist interessnat. wie viele futterquellen ist interessant. und wie nah eigetnlich auch. beeinflusst stark wie gut funktioniert. hierbei hilft 
+metrik fuer wie nah futterquellen sind. wie dense? 
+
+
+
 
 
 

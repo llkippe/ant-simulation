@@ -15,6 +15,8 @@ public class Food {
     public Food(int posX, int posY, int size) {
         this.posX = posX;
         this.posY = posY;
+        
+
         this.radius = size;
         this.id = nextId++;
 

@@ -144,5 +144,9 @@ public class Pheromones {
         return foodGrid[index(x, y)];
     }
 
+    public double getFoodDepletedPheromone(int x, int y) {
+        return foodDepletedGrid[index(x, y)];
+    }
+
     
 }

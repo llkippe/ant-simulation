@@ -6,18 +6,23 @@ import de.lucakippe.util.Util;
 public class Simulation {
     public final static int WIDTH = 600;
     public final static int HEIGHT = 600;
-    final static int NUM_ANTS = 1500;
+    final static int NUM_ANTS = 2500;
     final static double PERCENT_SCOUT_ANTS = 0.15; 
 
+
+    private int maxStepCount = 10000;
     static int stepCount = 0;
+    private boolean isRendered;
 
     private Ants ants;
     private Nest nest;
 
 
     private static final int MIN_DIST_TO_NEST = 200;
-    private static final int MIN_DIST_TO_FOOD = 80;
+    private static final int MIN_DIST_BETWEEN_FOODSOURCES = 150;
     private int foodSourceSize = 13;
+    private int simulatniousFoodSources = 3;
+    private int newFoodSpawnIntervall = 2000;
     private Food[] foodSources;
 
     MetricsManager metricsManager;
@@ -26,10 +31,11 @@ public class Simulation {
     private Pheromones pheromones;
 
     
-    public Simulation() {
+    public Simulation(boolean isRendered) {
+        
         
         nest = new Nest(300, 300, 20);
-        foodSources = new Food[3];
+        foodSources = new Food[simulatniousFoodSources];
         metricsManager = new MetricsManager(nest, foodSources);
         for (int i = 0; i < foodSources.length; i++) {
             foodSources[i] = createRandomFoodSource();
@@ -38,18 +44,36 @@ public class Simulation {
         
         pheromones = new Pheromones();
         ants = new Ants(pheromones, nest, foodSources,metricsManager);
+
+
+        this.isRendered = isRendered;
+        if(!isRendered ) {
+            update();
+        }
+
     }
 
     public void update() {
         stepCount++;
+        if(stepCount >= maxStepCount) {
+            System.out.println("Simulation Finished");
+            return;
+        }
+
+
         ants.update();
         pheromones.update();
 
-        if(stepCount % 2000 == 0) {
+        if(stepCount % newFoodSpawnIntervall == 0) {
             replaceOldestFoodSource();
         }
 
         metricsManager.update(stepCount, nest);
+
+
+        if(!isRendered) {
+            update();
+        }
     }
 
     public void replaceOldestFoodSource() {
@@ -77,6 +101,8 @@ public class Simulation {
             int posX = (int) (Math.random() * WIDTH);
             int posY = (int) (Math.random() * HEIGHT);
 
+            
+
             // check nest distance
             if (Util.dist(posX, posY, nest.posX, nest.posY)
                     < MIN_DIST_TO_NEST) {
@@ -90,13 +116,14 @@ public class Simulation {
                 if (f == null) continue;
 
                 if (Util.dist(posX, posY, f.getPosX(), f.getPosY())
-                        < MIN_DIST_TO_FOOD) {
+                        < MIN_DIST_BETWEEN_FOODSOURCES) {
                     tooClose = true;
                     break;
                 }
             }
 
             if (tooClose) continue;
+
 
             Food newFood = new Food(posX, posY, foodSourceSize); 
             metricsManager.reportSourceCreated(newFood.getId(), stepCount);
@@ -125,5 +152,9 @@ public class Simulation {
 
     public Food[] getFoodSources() {
         return foodSources;
+    }
+
+    public int getStepCount() {
+        return stepCount;
     }
 }

@@ -13,8 +13,8 @@ public class Ants {
     private boolean[] isScout;
 
     private boolean[] isFollowingStrongPath;
-    private final double STRONG_PATH_THRESHOLD = 6.5;
-    private final int CONFUSED_STEP_INTERVAL = 80;
+    private final double STRONG_PATH_THRESHOLD = 3.5;
+    private final int CONFUSED_STEP_INTERVAL = 55;
     private final double PERCENTAGE_TRIGGER_END_OF_TRAIL = 0.1;
     private final int[] stepsSinceLeavingStrongPath;
 
@@ -57,6 +57,7 @@ public class Ants {
             posX[i] = nest.getPosX();
             posY[i] = nest.getPosY();
             directions[i] = Math.random() * 2 * Math.PI;
+            
             states[i] = AntState.SEARCHING_FOR_FOOD;
             currentPheromoneDepositAmount[i] = maxPheromoneDepositAmount;
             carryingFoodFromSourceId[i] = -1; 
@@ -168,17 +169,26 @@ public class Ants {
 
     private void detectDisappointment(int index, double currentPheromoneIntensity) {
         if (states[index] == AntState.SEARCHING_FOR_FOOD && isScout[index] == false) {
-            if(currentPheromoneIntensity > STRONG_PATH_THRESHOLD) {
-                isFollowingStrongPath[index] = true;                
+            
+            // ameise ist aktuell aufm starken pfad 
+            if(currentPheromoneIntensity >= STRONG_PATH_THRESHOLD) {
+                isFollowingStrongPath[index] = true;
+                stepsSinceLeavingStrongPath[index] = 0; 
             }
 
-            if(isFollowingStrongPath[index]) {
+            // die ameise war auf starken pfad 
+            else if(isFollowingStrongPath[index] && currentPheromoneIntensity < STRONG_PATH_THRESHOLD * (1 - PERCENTAGE_TRIGGER_END_OF_TRAIL)) {
                 stepsSinceLeavingStrongPath[index]++;
-                if(stepsSinceLeavingStrongPath[index] > CONFUSED_STEP_INTERVAL && currentPheromoneIntensity < STRONG_PATH_THRESHOLD * (1 - PERCENTAGE_TRIGGER_END_OF_TRAIL)) {
+
+                // am ende des such intervals nach ende vom trail
+                if(stepsSinceLeavingStrongPath[index] > CONFUSED_STEP_INTERVAL) {
                     if(depositFoodDepletedPheremone) {
                         states[index] = AntState.DISAPPOINTED_RETURNING_HOME;
                         directions[index] += Math.PI; // turn around
+                        currentPheromoneDepositAmount[index] = maxPheromoneDepositAmount * 3;
                     }
+                    isFollowingStrongPath[index] = false;
+                    stepsSinceLeavingStrongPath[index] = 0;
                     metricsManager.reportAntDissapointed();
                 }
             }
@@ -197,8 +207,12 @@ public class Ants {
 
                 if (state == AntState.SEARCHING_FOR_FOOD) {
                     if (isOnFoodSource(sx, sy) != -1) sum += TARGET_BOOST;
-                    else if(!isScout) sum += pheromones.getFoodPheromone(sx, sy);
-                
+                    else if(!isScout) {
+                        double foodIntensity = pheromones.getFoodPheromone(sx, sy);
+                        double depletedIntensity = pheromones.getFoodDepletedPheromone(sx, sy);
+
+                        sum += Math.max(0, foodIntensity - depletedIntensity); 
+                    }           
                 } else { // RETURNING_HOME OR RETURNING_HOME_DISSAPOINTED
                     if (nest.isInsideNest(sx, sy)) sum += TARGET_BOOST;
                     else sum += pheromones.getHomePheromone(sx, sy);

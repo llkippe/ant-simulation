@@ -45,13 +45,15 @@ public class Renderer extends PApplet {
 
             float food = (float) sim.getPheromones().getFoodPheromone(x, y);
             float home = (float) sim.getPheromones().getHomePheromone(x, y);
+            float depleted = (float) sim.getPheromones().getFoodDepletedPheromone(x, y);
 
             int r = (int) Math.min(255, food * 255); 
             //if(food > 0) r = 255;
             int b = (int) Math.min(255, home * 255);
             //if (home > 0) b = 255;
+            int g = (int) Math.min(255, depleted * 255);
 
-            pheromoneMap.pixels[i] = (255 << 24) | (r << 16) | (0 << 8) | b;
+            pheromoneMap.pixels[i] = (255 << 24) | (r << 16) | (g << 8) | b;
         }
         pheromoneMap.updatePixels();
 
@@ -65,6 +67,7 @@ public class Renderer extends PApplet {
         double[] ys = antsData.getPosY();
         boolean[] isScout = antsData.getIsScout();
         AntState[] states = antsData.getStates();
+        
 
         strokeWeight(3 * scaleX); // Scale ant size slightly too
         for (int i = 0; i < antsData.getNumAnts(); i++) {
@@ -89,7 +92,7 @@ public class Renderer extends PApplet {
         drawNest();
         drawFoodSources();
 
-        surface.setTitle("FPS: " + (int)frameRate);
+        surface.setTitle("Steps In: " + sim.getStepCount()  + "   FPS: " + (int)frameRate);
     }
 
     private void drawFoodSources() {
@@ -108,6 +111,8 @@ public class Renderer extends PApplet {
         Nest nest = sim.getNest();
         circle(nest.getPosX() * scaleX, nest.getPosY() * scaleY, nest.getRadius() * 2 * scaleX);
     }
+
+    
 
 
 }
