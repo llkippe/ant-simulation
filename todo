@@ -1,17 +1,24 @@
 vergleiche meheree test laeufe.
 immer gleiche laenge. evtl 10 - 20 laufe pro simulation. avg dieser.
 
-Fragen?
- - was noch? reicht das fuer eine BA?
- - implementierung eins gegen pheromones 
-
- - wie läuft das mit anmelden? ...
- - was soll man schreieb
 
 
-10 mal laufen lassen
-welche werte? 
--> zeiten bis food source erschlossen ist
+
+- feste y achse bei schritten performance boxplot
+- y achse bei durchsatz variable aendern lassen
+
+
+- ist es auch relevant auf wie viele futterqullen durchsatz verteilt ist?
+- wenn ja dann auch das als performance metrik oder vis metrik
+- laufzeit so bestimmmen das es 5-6 dynamik wechsel gibt -> sonst sind 
+daten verfaelscht
+
+
+
+
+
+
+
 
 
 
@@ -22,9 +29,6 @@ welche werte?
 
 save settings relevant settings of run also in file.
 
-ein avg wert der path efficincy.
-wie viele ameisen depleted relativ nutzlos?
-avg wert der zeiten bis troughput erreicht wurde
 
 
 intervall ist interessnat. wie viele futterquellen ist interessant. und wie nah eigetnlich auch. beeinflusst stark wie gut funktioniert. hierbei hilft 
@@ -36,14 +40,15 @@ metrik fuer wie nah futterquellen sind. wie dense?
 
 
 
-test if warning singal can be fired nicly.
-deposit warning pheromone 
-check for warning pheromone -> what happens ? 
 
 
-build metrics
-path distance / eukliden distance
-missing dissapointment rate
- veraendere throuhput konvergenz zeit sodass sie von spawn bis mindest wert berechnet wird. -> stabiler pfad etabliert ?? vlt nicht so noetig sind man in graph
 
 
+
+visualisation:
+
+verschiedne farben
+andere grossen fuer ameisen
+socuts aus
+mehr spread wneiger steering merh wander
+moving food sources und nest

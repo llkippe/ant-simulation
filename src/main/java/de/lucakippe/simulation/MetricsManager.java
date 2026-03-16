@@ -33,10 +33,15 @@ public class MetricsManager {
     private SlidingWindow nestPathWindow = new SlidingWindow(WINDOW_SIZE);
     private Map<Integer, Double> distanceNestFoodCache = new HashMap<>();   
 
+    private int exploitingAntsCount = 0;
 
-   
 
-    MetricsManager(Nest nest, Food[] foodSources) {
+    private PrintWriter settingsWriter; 
+
+
+
+
+    MetricsManager(Nest nest, Food[] foodSources, int foodSpawnIntervall, int foodSourceCount, boolean antiPheromoneActive, int totalAnts) {
         this.nest = nest;
         this.foodSources = foodSources;
 
@@ -49,7 +54,8 @@ public class MetricsManager {
 
             // Create a unique subfolder for this simulation
             String timestamp = String.valueOf(System.currentTimeMillis());
-            simulationDataDir = dataDir.resolve(timestamp);
+            //String uuid = java.util.UUID.randomUUID().toString();
+            simulationDataDir = dataDir.resolve(timestamp + "_" + foodSourceCount + "_" + foodSpawnIntervall + "_" + antiPheromoneActive);
             Files.createDirectory(simulationDataDir);
 
             // Initialize writers for both metrics files
@@ -57,7 +63,12 @@ public class MetricsManager {
             sourceMetricsWriter.println("step,source_id,amount,throughput,creation_step,deletion_step");
 
             globalMetricsWriter = new PrintWriter(simulationDataDir.resolve("global_metrics.csv").toFile());
-            globalMetricsWriter.println("step,avg_step_efficeny_to_food,avg_step_efficeny_to_nest,dissapointmentRate");
+            globalMetricsWriter.println("step,avg_step_efficeny_to_food,avg_step_efficeny_to_nest,dissapointmentRate,exploitingAntsCount");
+
+            settingsWriter = new PrintWriter(simulationDataDir.resolve("settings.csv").toFile());
+            settingsWriter.println("FOOD_SPAWN_INTERVALL, FOOD_SOURCE_COUNT, antiPheromoneActive,totalAnts");
+            settingsWriter.println(foodSpawnIntervall + "," + foodSourceCount + "," + antiPheromoneActive + "," + totalAnts);
+            settingsWriter.flush();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -94,6 +105,11 @@ public class MetricsManager {
         writeSourceMetrics(currentStep, nest);
         writeGlobalMetrics(currentStep);
     }
+
+    public void reportExploitationStart() { exploitingAntsCount++; }
+    public void reportExploitationEnd() { exploitingAntsCount--; }
+
+    
 
 
     private double getCachedDistance(int foodSourceId) {
@@ -135,7 +151,7 @@ public class MetricsManager {
 
         double avgDisappointmentProStep = dissapointmentWindow.getAverage();
     
-        globalMetricsWriter.println(currentStep + "," + foodStr + "," + nestStr + "," + avgDisappointmentProStep);
+        globalMetricsWriter.println(currentStep + "," + foodStr + "," + nestStr + "," + avgDisappointmentProStep + "," + exploitingAntsCount);
         globalMetricsWriter.flush();
 
         dissappointmentsInCurrentInterval = 0;

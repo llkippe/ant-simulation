@@ -6,11 +6,11 @@ public class Simulation {
     public final static int WIDTH = 600;
     public final static int HEIGHT = 600;
     final static int NUM_ANTS = 2500;
-    final static double PERCENT_SCOUT_ANTS = 0.15; 
+    final static double PERCENT_SCOUT_ANTS = 0.1; 
 
 
-    private int maxStepCount = 10000;
-    static int stepCount = 0;
+    private int maxStepCount;
+    public int stepCount = 0;
     private boolean isRendered;
 
     private Ants ants;
@@ -19,9 +19,9 @@ public class Simulation {
 
     private static final int MIN_DIST_TO_NEST = 200;
     private static final int MIN_DIST_BETWEEN_FOODSOURCES = 150;
-    private int foodSourceSize = 13;
-    private int simulatniousFoodSources = 3;
-    private int newFoodSpawnIntervall = 2000;
+    private static int foodSourceSize = 13;
+    public int foodSourceCount;
+    public int foodSpawnIntervall;
     private Food[] foodSources;
 
     MetricsManager metricsManager;
@@ -30,19 +30,22 @@ public class Simulation {
     private Pheromones pheromones;
 
     
-    public Simulation(boolean isRendered) {
+    public Simulation(boolean isRendered, boolean antiPheromoneActive, int simFoodSources, int newFoodSpawnIntervall) {
+        foodSourceCount = simFoodSources;
+        foodSpawnIntervall = newFoodSpawnIntervall;
+        maxStepCount = newFoodSpawnIntervall * 8;
         
         
-        nest = new Nest(300, 300, 20);
-        foodSources = new Food[simulatniousFoodSources];
-        metricsManager = new MetricsManager(nest, foodSources);
+        nest = new Nest(300, 300, 35);
+        foodSources = new Food[foodSourceCount];
+        metricsManager = new MetricsManager(nest, foodSources, foodSpawnIntervall, foodSourceCount, antiPheromoneActive, NUM_ANTS);
         for (int i = 0; i < foodSources.length; i++) {
             foodSources[i] = createRandomFoodSource();
         }
         
         
         pheromones = new Pheromones();
-        ants = new Ants(pheromones, nest, foodSources,metricsManager);
+        ants = new Ants(pheromones, nest, foodSources,metricsManager, antiPheromoneActive);
 
 
         this.isRendered = isRendered;
@@ -63,7 +66,7 @@ public class Simulation {
         ants.update();
         pheromones.update();
 
-        if(stepCount % newFoodSpawnIntervall == 0) {
+        if(stepCount % foodSpawnIntervall == 0) {
             replaceOldestFoodSource();
         }
 
@@ -124,7 +127,7 @@ public class Simulation {
             if (tooClose) continue;
 
 
-            Food newFood = new Food(posX, posY, foodSourceSize); 
+            Food newFood = new Food(posX, posY, foodSourceSize, stepCount); 
             metricsManager.reportSourceCreated(newFood.getId(), stepCount);
             return newFood;
         }
@@ -133,7 +136,8 @@ public class Simulation {
         return new Food(
             (int)(Math.random() * WIDTH),
             (int)(Math.random() * HEIGHT),
-            foodSourceSize
+            foodSourceSize,
+            stepCount
         );
     }
 

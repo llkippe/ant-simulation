@@ -12,7 +12,7 @@ public class Food {
     int createdAtStep; 
 
 
-    public Food(int posX, int posY, int size) {
+    public Food(int posX, int posY, int size, int currentStepCount) {
         this.posX = posX;
         this.posY = posY;
         
@@ -20,7 +20,7 @@ public class Food {
         this.radius = size;
         this.id = nextId++;
 
-        this.createdAtStep = Simulation.stepCount;
+        this.createdAtStep = currentStepCount;
     }
 
     public int getPosX() {

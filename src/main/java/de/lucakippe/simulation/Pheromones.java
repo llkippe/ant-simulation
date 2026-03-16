@@ -8,11 +8,15 @@ public class Pheromones {
     private double[] foodGrid;
     private double[] foodDepletedGrid;
 
-    final static double DIFFUSION_RATE = 0.04;
+  
 
     final static double LINEAR_THRESHHOLD = 0.05;
     final static double LINEAR_DROPOFF = 0.0001;
-    final static double EVAPORATION_RATE = 0.015;
+    final static double EVAPORATION_RATE = 0.007;
+    final static double FOOD_DEPLETED_EVAPORTAION_RATE = 0.0035; // half of original evaporation rate
+
+    final static double DIFFUSION_RATE = 0.04;
+    final static double FOOD_DEPLETED_DIFFUSION_RATE = 0.25;
 
     final static double MAX_PHEROMONE_STRENGTH = 13.0;
 
@@ -58,7 +62,7 @@ public class Pheromones {
             if(foodDepletedGrid[i] > MAX_PHEROMONE_STRENGTH) foodDepletedGrid[i] = MAX_PHEROMONE_STRENGTH;
 
             if (foodDepletedGrid[i] > LINEAR_THRESHHOLD) {
-                foodDepletedGrid[i] *= (1 - EVAPORATION_RATE);
+                foodDepletedGrid[i] *= (1 - FOOD_DEPLETED_EVAPORTAION_RATE);
             } else {
                 foodDepletedGrid[i] -= LINEAR_DROPOFF;
             }
@@ -107,7 +111,7 @@ public class Pheromones {
             // Linear interpolation between current value and neighbor average
             newHomeGrid[i] = homeGrid[i] + (avgHome - homeGrid[i]) * DIFFUSION_RATE;
             newFoodGrid[i] = foodGrid[i] + (avgFood - foodGrid[i]) * DIFFUSION_RATE;
-            newFoodDepletedGrid[i] = foodDepletedGrid[i] + (avgFoodDepleted - foodDepletedGrid[i]) * DIFFUSION_RATE;
+            newFoodDepletedGrid[i] = foodDepletedGrid[i] + (avgFoodDepleted - foodDepletedGrid[i]) * FOOD_DEPLETED_DIFFUSION_RATE;
         }
 
         // 5. Swap the grids

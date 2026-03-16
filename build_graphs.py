@@ -19,6 +19,9 @@ run_id = sys.argv[1]
 base_dir = f"{run_id}"
 csv_source = os.path.join(base_dir, "source_metrics.csv")
 csv_global = os.path.join(base_dir, "global_metrics.csv")
+csv_settings = os.path.join(base_dir, "settings.csv")
+
+
 
 # Neue Output-Pfade
 out_source_png = os.path.join(base_dir, "01_source_throughput.png")
@@ -34,6 +37,7 @@ if not os.path.exists(csv_source) or not os.path.exists(csv_global):
 # ==========================================
 df_source = pd.read_csv(csv_source)
 df_global = pd.read_csv(csv_global)
+df_settings = pd.read_csv(csv_settings)
 
 pivot_df = df_source.pivot(index='step', columns='source_id', values='throughput').fillna(0)
 source_ids = sorted(pivot_df.columns)
@@ -62,8 +66,64 @@ ax1.stackplot(pivot_df.index, pivot_df.values.T,
 marker_y_start = -1  # Reduziert den Startpunkt
 marker_spacing = 1   # Reduziert den Abstand zwischen den Markern
 
-# Liste zum Sammeln der Daten für den Boxplot später
 steps_to_reach_convergence_list = []
+
+recovery_events = [] # Liste für Marker: (step, throughput_value)
+recovery_times = []  # Liste für Statistik: (time_delta)
+
+# Wir nutzen das bereits berechnete global_throughput
+global_throughput = pivot_df.sum(axis=1)
+
+# Puffer und Bestätigungsfenster definieren
+puffer = 0.98  # 90% des alten Niveaus reichen als "recovered"
+min_stable_steps = 100 
+
+deletion_steps = df_source[df_source['deletion_step'] != -1]['deletion_step'].unique()
+
+# 1. Wir berechnen den globalen Durchsatz direkt aus der Grafik-Basis
+global_throughput = pivot_df.sum(axis=1)
+
+recovery_events = []
+recovery_times = []
+
+recovery_events = []
+recovery_times = []
+
+global_throughput = pivot_df.sum(axis=1)
+#print(global_throughput[1500])
+
+for d_step in deletion_steps:
+    # 1. Zielwert definieren (Durchschnitt vor der Löschung)
+    pre_data = global_throughput[(global_throughput.index >= d_step - 50) & (global_throughput.index < d_step)]
+    
+    if pre_data.empty: continue
+    print(d_step)
+    print(pre_data.mean())
+    target_value = pre_data.mean() * 0.9
+    
+    # 2. Den "Tiefpunkt" abwarten
+    # Wir suchen erst ab dem Punkt, an dem der Durchsatz UNTER den Zielwert gefallen ist
+    post_deletion = global_throughput[global_throughput.index > d_step]
+    
+    # Wir finden den ersten Schritt, an dem der Durchsatz wirklich eingebrochen ist
+    dropped_data = post_deletion[post_deletion < target_value]
+    if dropped_data.empty: continue
+    first_drop_step = dropped_data.index.min()
+    
+    # 3. Recovery-Suche erst NACH dem Einbruch starten
+    actual_recovery_search = post_deletion[post_deletion.index > first_drop_step]
+    
+    for step, value in actual_recovery_search.items():
+        if value >= target_value:
+            # Stabilitäts-Check (100 Schritte)
+            future = global_throughput[(global_throughput.index >= step) & (global_throughput.index <= step + 100)]
+            if not future.empty and future.min() >= target_value:
+                recovery_step = step
+                recovery_times.append(recovery_step - d_step)
+                recovery_events.append((recovery_step, value))
+                break
+
+
 
 for i, sid in enumerate(source_ids):
     source_data = df_source[df_source['source_id'] == sid]
@@ -93,15 +153,26 @@ for i, sid in enumerate(source_ids):
 
         ax1.scatter(first_step_over_convergence, y_pos, color=color, s=180, marker='^',
                     edgecolors='black', zorder=10)
+        
+if recovery_events:
+    r_steps, r_values = zip(*recovery_events)
+    ax1.scatter(r_steps, r_values, color='cyan', s=250, marker='*', 
+                edgecolors='black', label='Resilienz erreicht', zorder=20)
+
 
 # Anpassung der unteren y-Achsenbegrenzungen
 lowest_y = marker_y_start - (len(source_ids) * marker_spacing)
 ax1.set_ylim(bottom=lowest_y) 
 
-yticks = np.arange(len(source_ids) * -1, 6, 1)
+# 1. Berechne den maximalen Gesamtdurchsatz (Summe aller Quellen pro Zeitschritt)
+max_total_throughput = pivot_df.sum(axis=1).max()
+
+# 2. Definiere das obere Limit für die Ticks (aufgerundet auf die nächste Ganzzahl für sauberere Ticks)
+upper_tick_limit = int(np.ceil(max_total_throughput))
+
+# 3. Y-Achse anpassen (wir ersetzen die 6 durch upper_tick_limit + 1, damit das Max enthalten ist)
+yticks = np.arange(len(source_ids) * -1, upper_tick_limit + 1, 1)
 ax1.set_yticks(yticks)
-
-
 
 ax1.set_xticks(xticks)
 
@@ -110,6 +181,36 @@ ax1.set_xlabel('Simulations Schritt', fontsize=12)
 ax1.set_ylabel('Durchsatz & Simulations Events', fontsize=12)
 ax1.set_title('Futterqullendurchsatz pro Zeitschritt', fontsize=16, pad=10)
 ax1.grid(axis='y', linestyle='--', alpha=0.3)
+
+
+# exploration / explotation index
+
+total_ants = df_settings['totalAnts'].iloc[0]
+ee_ratio = df_global['exploitingAntsCount'] / total_ants
+
+ax1_twin = ax1.twinx()
+
+# Plotting the line
+line_twin = ax1_twin.plot(df_global['step'], ee_ratio, color='black', 
+                          linewidth=2, linestyle=':', label='Exploitation Ratio (0-1)')
+
+# ax1 current range: [lowest_y, 5] (based on your earlier code)
+throughput_min, throughput_max = ax1.get_ylim()
+
+# We want the twin axis to start at 0 at the same visual level as ax1's zero.
+# To do this, we set the twin bottom so that 0 is at the same % height.
+# Formula: twin_bottom = (throughput_min / throughput_max) * twin_max
+twin_max = 1.0  # Since it's a ratio 0.0 to 1.0
+twin_min = (throughput_min / throughput_max) * twin_max
+
+ax1_twin.set_ylim(twin_min, twin_max)
+
+# 5. Styling
+ax1_twin.set_ylabel('Exploitation Ratio (Normalized)', color='black', fontsize=12)
+ax1_twin.tick_params(axis='y', labelcolor='black')
+
+# Update Legend to include the new line
+
 
 # Legend Setup für Graph 1
 marker_legend_elements = [
@@ -120,8 +221,13 @@ marker_legend_elements = [
     Line2D([0], [0], marker='^', color='w', label=f'Durchsatz > {troughput_convergence}',
            markerfacecolor='gray', markersize=12, markeredgecolor='black'),
 ]
+
+
 source_legend_elements = [Line2D([0], [0], color=colors[sid], lw=6, label=f'Futterquelle {int(sid)}') for sid in source_ids]
-ax1.legend(handles=marker_legend_elements + source_legend_elements, loc='upper left', bbox_to_anchor=(1.02, 1))
+
+all_handles = marker_legend_elements + source_legend_elements + line_twin
+ax1.legend(handles=all_handles, loc='upper left', bbox_to_anchor=(1.1, 1))
+#ax1.legend(handles=marker_legend_elements + source_legend_elements, loc='upper left', bbox_to_anchor=(1.02, 1))
 
 fig1.tight_layout()
 fig1.savefig(out_source_png, bbox_inches='tight')
@@ -156,39 +262,59 @@ plt.close(fig2)
 # ==========================================
 # GRAPH 3: BOXPLOTS (Time to Throughput & Efficiency)
 # ==========================================
-# Wir nutzen 1 Reihe, 2 Spalten, damit die Skalierungen nicht kaputt gehen
-fig3, (ax_box1, ax_box2) = plt.subplots(1, 2, figsize=(7, 4))
+# Wir erweitern auf 4 Subplots, damit alles Platz hat
+fig3, (ax_box1, ax_box_rec, ax_box2, ax_box3) = plt.subplots(1, 4, figsize=(18, 5))
 
-
-# --- Linker Boxplot: Steps to reach 50 Throughput ---
-if steps_to_reach_convergence_list: # Check if there is data
-    bp1 = ax_box1.boxplot(steps_to_reach_convergence_list, patch_artist=True, widths=0.4)
-    # Style the box
-    for box in bp1['boxes']:
-        box.set(facecolor='orange', alpha=0.7)
-    
-    ax_box1.set_title(f'Durchschnittliche Schritte bis Durchsatz > {troughput_convergence}', fontsize=10)
-    ax_box1.set_ylabel('Schritte', fontsize=12)
+# --- 1. Schritte bis Durchsatz-Ziel (Swarm Plot) ---
+if steps_to_reach_convergence_list:
+    x_coords = np.random.normal(1, 0.04, size=len(steps_to_reach_convergence_list))
+    ax_box1.scatter(x_coords, steps_to_reach_convergence_list, alpha=0.6, edgecolors='black', color='orange', s=60)
+    ax_box1.hlines(np.mean(steps_to_reach_convergence_list), 0.8, 1.2, colors='red', linestyles='--', lw=2)
+    ax_box1.set_title('Zeit bis Convergence', fontsize=10)
+    ax_box1.set_ylabel('Schritte', fontsize=10)
     ax_box1.set_xticks([1])
-    ax_box1.set_xticklabels(['Alle Futterquellen'])
-    ax_box1.grid(axis='y', linestyle='--', alpha=0.5)
+    ax_box1.set_xticklabels(['Quellen'])
+    ax_box1.grid(axis='y', linestyle='--', alpha=0.3)
 
-# --- Rechter Boxplot: Average Efficiency ---
-# Wir werfen NaN werte raus, falls es Lücken in der Simulation gibt
+# --- 2. Time-to-Recovery (Swarm Plot) ---
+if deletion_steps.size > 0: # Gab es überhaupt Löschungen?
+    if recovery_times:
+        x_jitter = np.random.normal(1, 0.05, size=len(recovery_times))
+        ax_box_rec.scatter(x_jitter, recovery_times, color='cyan', edgecolors='black', alpha=0.7, s=80)
+        ax_box_rec.hlines(np.mean(recovery_times), 0.8, 1.2, colors='black', linestyles='--')
+    
+    # Text-Info über gescheiterte Recoveries einfügen
+    failed_count = len(deletion_steps) - len(recovery_times)
+    recovery_rate = (len(recovery_times) / len(deletion_steps)) * 100 if len(deletion_steps) > 0 else 100.0
+
+    ax_box_rec.set_title('Erholunszeit', fontsize=10)
+    ax_box_rec.set_ylabel('Schritte nach Einbruch', fontsize=10)
+    ax_box_rec.set_xticks([1])
+    labels = ax_box_rec.set_xticklabels([f"Nicht regeneriert: {failed_count} ({recovery_rate}%)"])
+    
+    # Das spezifische Label rot und fett machen
+    plt.setp(labels, color='red', fontweight='bold')
+
+# --- 3. Pfadeffizienz (Boxplot) ---
 eff_food = df_global['avg_step_efficeny_to_food'].dropna()
 eff_nest = df_global['avg_step_efficeny_to_nest'].dropna()
+if not eff_food.empty:
+    bp2 = ax_box2.boxplot([eff_food, eff_nest], patch_artist=True, tick_labels=['Futter', 'Nest'], widths=0.4)
+    for patch, color in zip(bp2['boxes'], ['green', 'blue']):
+        patch.set(facecolor=color, alpha=0.5)
+    ax_box2.set_title('Ø Pfadeffizienz', fontsize=10)
+    ax_box2.set_ylim(-0.05, 1.05)
+    ax_box2.grid(axis='y', linestyle='--', alpha=0.3)
 
-bp2 = ax_box2.boxplot([eff_food, eff_nest], patch_artist=True, labels=['Zu Futterquellen', 'Zum Nest'], widths=0.4)
-
-# Style the boxes (Green for Food, Blue for Nest)
-colors_box = ['green', 'blue']
-for patch, color in zip(bp2['boxes'], colors_box):
-    patch.set(facecolor=color, alpha=0.5)
-
-ax_box2.set_title('Durchschnittliche Pfadeffizienz', fontsize=10)
-ax_box2.set_ylabel('Effizienz der Pfadlänge [∅] (0.0 - 1.0)', fontsize=10)
-ax_box2.set_ylim(-0.05, 1.05)
-ax_box2.grid(axis='y', linestyle='--', alpha=0.5)
+# --- 4. Gesamt-Durchsatz (Boxplot der Verteilung über die Zeit) ---
+global_throughput = pivot_df.sum(axis=1)
+bp4 = ax_box3.boxplot(global_throughput, patch_artist=True, widths=0.4)
+for box in bp4['boxes']:
+    box.set(facecolor='magenta', alpha=0.5)
+ax_box3.set_title('Ø Gesamt-Durchsatz', fontsize=10)
+ax_box3.set_ylabel('Durchsatz Summe', fontsize=10)
+ax_box3.set_xticklabels(['Gesamtverlauf'])
+ax_box3.grid(axis='y', linestyle='--', alpha=0.3)
 
 fig3.tight_layout()
 plt.subplots_adjust(wspace=0.4) 
@@ -202,3 +328,60 @@ print("Graphs successfully split and saved to:")
 print(f"1: {out_source_png}")
 print(f"2: {out_global_png}")
 print(f"3: {out_boxplots_png}")
+
+# ==========================================
+# 5. Save Extended Numerical Metrics to File
+# ==========================================
+out_metrics_csv = os.path.join(base_dir, "performance_summary.csv")
+
+def get_stats(data_list):
+    """Hilfsfunktion für Berechnungen - kompatibel mit Listen und Pandas Series"""
+    # Sicherstellen, dass wir mit einem NumPy Array arbeiten (verhindert den ValueError)
+    data = np.array(data_list)
+    
+    # Prüfen ob das Array leer ist
+    if data.size == 0:
+        return [np.nan] * 4
+        
+    # NaNs entfernen (wichtig für min/max)
+    data = data[~pd.isna(data)]
+    
+    if data.size == 0:
+        return [np.nan] * 4
+        
+    return [np.mean(data), np.std(data), np.min(data), np.max(data)]
+# Stats berechnen
+stats_conv = get_stats(steps_to_reach_convergence_list)
+stats_rec  = get_stats(recovery_times)
+stats_tp   = get_stats(global_throughput)
+stats_eff_f = get_stats(eff_food)
+stats_eff_n = get_stats(eff_nest)
+
+recovery_rate = (len(recovery_times) / len(deletion_steps)) * 100 if len(deletion_steps) > 0 else 100.0
+
+metrics_summary = {
+    "Metric": ["Convergence_Steps", "Recovery_Steps", "Global_Throughput", "Efficiency_Food", "Efficiency_Nest"],
+    "Mean": [stats_conv[0], stats_rec[0], stats_tp[0], stats_eff_f[0], stats_eff_n[0]],
+    "Std_Dev": [stats_conv[1], stats_rec[1], stats_tp[1], stats_eff_f[1], stats_eff_n[1]],
+    "Min": [stats_conv[2], stats_rec[2], stats_tp[2], stats_eff_f[2], stats_eff_n[2]],
+    "Max": [stats_conv[3], stats_rec[3], stats_tp[3], stats_eff_f[3], stats_eff_n[3]]
+}
+
+df_summary = pd.DataFrame(metrics_summary)
+# Recovery Rate anhängen
+df_summary.loc[len(df_summary)] = ["Recovery_Rate_Pct", recovery_rate, np.nan, np.nan, np.nan]
+
+# Run_ID ganz vorne einfügen (sehr nützlich für Aggregationen)
+df_summary.insert(0, "Run_ID", run_id)
+
+# Als CSV speichern
+df_summary.to_csv(out_metrics_csv, index=False, sep=',', decimal='.')
+
+# --- NEU: Formatiertes Terminal Output ---
+print("\n" + "="*80)
+print(f" PERFORMANCE SUMMARY - RUN: {run_id}")
+print("="*80)
+# Wir runden die Tabelle für die Anzeige auf 2 Nachkommastellen
+print(df_summary.drop(columns=["Run_ID"]).to_string(index=False, justify='center', float_format=lambda x: f"{x:8.2f}"))
+print("="*80)
+print(f"Datei gespeichert: {out_metrics_csv}\n")

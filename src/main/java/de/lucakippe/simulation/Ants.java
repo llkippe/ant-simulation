@@ -2,7 +2,7 @@ package de.lucakippe.simulation;
 
 public class Ants {
     private Pheromones pheromones;
-    private boolean depositFoodDepletedPheremone = true;
+    private boolean antiPheromoneActive;
 
     private double[] posX;
     private double[] posY;
@@ -13,20 +13,21 @@ public class Ants {
     private boolean[] isScout;
 
     private boolean[] isFollowingStrongPath;
-    private final double STRONG_PATH_THRESHOLD = 3.5;
+    private final double STRONG_PATH_THRESHOLD = 4;
     private final int CONFUSED_STEP_INTERVAL = 55;
-    private final double PERCENTAGE_TRIGGER_END_OF_TRAIL = 0.1;
+    private final double PERCENTAGE_TRIGGER_END_OF_TRAIL = 0.15;
     private final int[] stepsSinceLeavingStrongPath;
 
 
     private double speed = 1.0;
     private double wanderStrength = 0.3; // in radians (random value between -wanderStrength/2 and +wanderStrength/2)
-    private double steeringStrength = 0.6; // in radians;
+    private double steeringStrength = 0.5; // in radians;
 
-    private double maxPheromoneDepositAmount = 1.0;
-    private double maxPheromoneDepositAmountScoutOnFood = 8.0;
+    private double maxPheromoneDepositAmount = 0.8;
+    private double maxPheromoneDepositAmountScoutOnFood = 5.5;
     private double[] currentPheromoneDepositAmount;
     private double pheremonDepositDecayRate = 0.015;
+    private double foodDepletedStrength = 2; // based on research anti is double as strong
 
     private double sensorDistance = 25.0;
     private double sensorOffsetAngle = Math.PI / 5; // 36 grad
@@ -36,11 +37,12 @@ public class Ants {
     private Food[] foodSources;
 
 
-    public Ants(Pheromones pheromones, Nest nest, Food[] foodSources, MetricsManager metricsManager) {
+    public Ants(Pheromones pheromones, Nest nest, Food[] foodSources, MetricsManager metricsManager, boolean antiPheromoneActive) {
         this.pheromones = pheromones;
         this.nest = nest;
         this.foodSources = foodSources;
         this.metricsManager = metricsManager;
+        this.antiPheromoneActive = antiPheromoneActive;
 
         this.posX = new double[Simulation.NUM_ANTS];
         this.posY = new double[Simulation.NUM_ANTS];
@@ -91,6 +93,11 @@ public class Ants {
             carryingFoodFromSourceId[index] = foodSourceId;
             metricsManager.reportStepsToFood(stepsSinceLastTarget[index], foodSourceId); 
             stepsSinceLastTarget[index] = 0;
+
+            if (!isFollowingStrongPath[index]) {
+            metricsManager.reportExploitationStart();
+            }
+
             isFollowingStrongPath[index] = false;
             stepsSinceLeavingStrongPath[index] = 0;
         }
@@ -108,14 +115,20 @@ public class Ants {
         if((states[index] == AntState.RETURNING_HOME || states[index] == AntState.DISAPPOINTED_RETURNING_HOME) && nest.isInsideNest(posX[index], posY[index])) {    
             
             if(states[index] == AntState.RETURNING_HOME) {
-            metricsManager.reportStepsToNest(stepsSinceLastTarget[index], carryingFoodFromSourceId[index]);
-            nest.foodBroughtToNest(carryingFoodFromSourceId[index]);
+                metricsManager.reportStepsToNest(stepsSinceLastTarget[index], carryingFoodFromSourceId[index]);
+                nest.foodBroughtToNest(carryingFoodFromSourceId[index]);
+                metricsManager.reportExploitationEnd(); // when dissapointed it already counts as exploring from this moment on
             }
+
             directions[index] += Math.PI; // turn around
             states[index] = AntState.SEARCHING_FOR_FOOD;
             currentPheromoneDepositAmount[index] = maxPheromoneDepositAmount;
             stepsSinceLastTarget[index] = 0;
             carryingFoodFromSourceId[index] = -1;
+
+   
+
+
             isFollowingStrongPath[index] = false;
             stepsSinceLeavingStrongPath[index] = 0;
         }
@@ -130,7 +143,7 @@ public class Ants {
             pheromones.depositToHomePheromone(x, y, currentPheromoneDepositAmount[i]);
         } else if (states[i] == AntState.RETURNING_HOME) {
            pheromones.depositToFoodPheromone(x, y, currentPheromoneDepositAmount[i]);
-        } else if (states[i] == AntState.DISAPPOINTED_RETURNING_HOME && depositFoodDepletedPheremone) {
+        } else if (states[i] == AntState.DISAPPOINTED_RETURNING_HOME && antiPheromoneActive) {
             pheromones.depostFoodDepletedPheromone(x, y, currentPheromoneDepositAmount[i]);
         }
         
@@ -170,9 +183,14 @@ public class Ants {
     private void detectDisappointment(int index, double currentPheromoneIntensity) {
         if (states[index] == AntState.SEARCHING_FOR_FOOD && isScout[index] == false) {
             
+            
+
             // ameise ist aktuell aufm starken pfad 
             if(currentPheromoneIntensity >= STRONG_PATH_THRESHOLD) {
-                isFollowingStrongPath[index] = true;
+                if(!isFollowingStrongPath[index]){
+                    isFollowingStrongPath[index] = true;
+                    metricsManager.reportExploitationStart();
+                }
                 stepsSinceLeavingStrongPath[index] = 0; 
             }
 
@@ -182,7 +200,7 @@ public class Ants {
 
                 // am ende des such intervals nach ende vom trail
                 if(stepsSinceLeavingStrongPath[index] > CONFUSED_STEP_INTERVAL) {
-                    if(depositFoodDepletedPheremone) {
+                    if(antiPheromoneActive) {
                         states[index] = AntState.DISAPPOINTED_RETURNING_HOME;
                         directions[index] += Math.PI; // turn around
                         currentPheromoneDepositAmount[index] = maxPheromoneDepositAmount * 3;
@@ -190,6 +208,7 @@ public class Ants {
                     isFollowingStrongPath[index] = false;
                     stepsSinceLeavingStrongPath[index] = 0;
                     metricsManager.reportAntDissapointed();
+                    metricsManager.reportExploitationEnd();
                 }
             }
         }
@@ -211,7 +230,7 @@ public class Ants {
                         double foodIntensity = pheromones.getFoodPheromone(sx, sy);
                         double depletedIntensity = pheromones.getFoodDepletedPheromone(sx, sy);
 
-                        sum += Math.max(0, foodIntensity - depletedIntensity); 
+                        sum += Math.max(0, foodIntensity - (depletedIntensity * foodDepletedStrength)); 
                     }           
                 } else { // RETURNING_HOME OR RETURNING_HOME_DISSAPOINTED
                     if (nest.isInsideNest(sx, sy)) sum += TARGET_BOOST;
@@ -251,6 +270,7 @@ public class Ants {
         stepsSinceLastTarget[index]++;
 
     }
+
 
 
 
