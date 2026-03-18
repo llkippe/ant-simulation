@@ -55,10 +55,13 @@ public class Simulation {
 
     }
 
+
     public void update() {
         stepCount++;
-        if(stepCount >= maxStepCount) {
+        if(stepCount > maxStepCount) return;
+        if(stepCount == maxStepCount) {
             System.out.println("Simulation Finished");
+            PythonScriptRunner.runPythonScript(metricsManager.getSimulationDataDir().toString());
             return;
         }
 

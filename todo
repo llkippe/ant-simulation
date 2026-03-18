@@ -1,18 +1,21 @@
-vergleiche meheree test laeufe.
-immer gleiche laenge. evtl 10 - 20 laufe pro simulation. avg dieser.
+
+einen hyperparameter festhalten den andern veraendern
+-> deutlich laenger testlaeufe ( gegen explotation einzelner futterqullen)
+-> mehrere mit selben settings um avg zu bekommen. davor ueberlegen wie man die daten dann avg macht. -> automatisch
+
+
+-> verteilung durchsatz auf wie viele futterquellen -> als neue metrik
+-> unten bei durchsatz einelzern quellen dazu schreiben wie viele es nicht erreicht haben
 
 
 
+- performacne farben anpassen
+- die cyan sterne zu was anderem machen
 
-- feste y achse bei schritten performance boxplot
-- y achse bei durchsatz variable aendern lassen
 
 
-- ist es auch relevant auf wie viele futterqullen durchsatz verteilt ist?
-- wenn ja dann auch das als performance metrik oder vis metrik
-- laufzeit so bestimmmen das es 5-6 dynamik wechsel gibt -> sonst sind 
-daten verfaelscht
-
+- middendorf ueber richtigkeit der metriken rueberschauen lassen
+- grafiken interpretierbar?
 
 
 

@@ -45,8 +45,8 @@ source_ids = sorted(pivot_df.columns)
 cmap = plt.get_cmap('tab10')
 colors = {sid: cmap(i % 10) for i, sid in enumerate(source_ids)}
 
-max_step = df_source['step'].max()
-xticks = np.arange(0, max_step+100, 1000)
+#max_step = df_source['step'].max()
+#xticks = np.arange(0, max_step+100, 1000)
 
 # Liste zum Sammeln der Daten für den Boxplot später
 steps_to_reach_convergence_list = []
@@ -90,15 +90,12 @@ recovery_events = []
 recovery_times = []
 
 global_throughput = pivot_df.sum(axis=1)
-#print(global_throughput[1500])
 
 for d_step in deletion_steps:
     # 1. Zielwert definieren (Durchschnitt vor der Löschung)
     pre_data = global_throughput[(global_throughput.index >= d_step - 50) & (global_throughput.index < d_step)]
     
     if pre_data.empty: continue
-    print(d_step)
-    print(pre_data.mean())
     target_value = pre_data.mean() * 0.9
     
     # 2. Den "Tiefpunkt" abwarten
@@ -174,7 +171,7 @@ upper_tick_limit = int(np.ceil(max_total_throughput))
 yticks = np.arange(len(source_ids) * -1, upper_tick_limit + 1, 1)
 ax1.set_yticks(yticks)
 
-ax1.set_xticks(xticks)
+#ax1.set_xticks(xticks)
 
 
 ax1.set_xlabel('Simulations Schritt', fontsize=12)
@@ -246,7 +243,7 @@ ax2.set_ylabel('Pfadeffizienz', fontsize=12)
 ax2.set_xlabel('Simulations Schritt', fontsize=12)
 ax2.set_title('Pfadeffizienz & Enttäuschungsrate', fontsize=16, pad=20)
 ax2.legend(loc='upper left')
-ax2.set_xticks(xticks)
+#ax2.set_xticks(xticks)
 ax2.grid(True, alpha=0.3)
 
 ax3 = ax2.twinx()
@@ -259,43 +256,69 @@ fig2.tight_layout()
 fig2.savefig(out_global_png, bbox_inches='tight')
 plt.close(fig2)
 
+
+# ==========================================
+# Berechnung Jain's Fairness Index
+# 1. Berechne, wie viele Futterquellen zu jedem Zeitschritt AKTIV sind
+active_counts = pd.Series(0, index=pivot_df.index)
+for sid in source_ids:
+    s_data = df_source[df_source['source_id'] == sid]
+    c_step = s_data['creation_step'].max()
+    d_step = s_data['deletion_step'].max()
+    
+    if c_step != -1:  # Quelle wurde erstellt
+        mask = (pivot_df.index >= c_step)
+        if d_step != -1:
+            mask = mask & (pivot_df.index <= d_step)
+        active_counts += mask.astype(int)
+
+# 2. Jains Fairness Formel anwenden: (Summe(x))^2 / (n * Summe(x^2))
+sum_tp = pivot_df.sum(axis=1)
+sum_sq_tp = (pivot_df ** 2).sum(axis=1)
+
+# Verhindern von Division durch Null (wo keine Quellen oder kein Durchsatz ist)
+denominator = (active_counts * sum_sq_tp).replace(0, np.nan)
+jains_index = (sum_tp ** 2) / denominator
+
+# NaNs zu 0 umwandeln (falls zeitweise gar kein Durchsatz da ist)
+jains_index = jains_index.fillna(0)
+
+
+
 # ==========================================
 # GRAPH 3: BOXPLOTS (Time to Throughput & Efficiency)
 # ==========================================
-# Wir erweitern auf 4 Subplots, damit alles Platz hat
-fig3, (ax_box1, ax_box_rec, ax_box2, ax_box3) = plt.subplots(1, 4, figsize=(18, 5))
+# Auf 5 Subplots erweitert für Jain's Fairness Index
+fig3, (ax_box1, ax_box_rec, ax_box2, ax_box3, ax_box_jain) = plt.subplots(1, 5, figsize=(22, 5))
 
-# --- 1. Schritte bis Durchsatz-Ziel (Swarm Plot) ---
+# --- 1. Schritte bis Durchsatz-Ziel ---
 if steps_to_reach_convergence_list:
     x_coords = np.random.normal(1, 0.04, size=len(steps_to_reach_convergence_list))
     ax_box1.scatter(x_coords, steps_to_reach_convergence_list, alpha=0.6, edgecolors='black', color='orange', s=60)
     ax_box1.hlines(np.mean(steps_to_reach_convergence_list), 0.8, 1.2, colors='red', linestyles='--', lw=2)
     ax_box1.set_title('Zeit bis Convergence', fontsize=10)
     ax_box1.set_ylabel('Schritte', fontsize=10)
-    ax_box1.set_xticks([1])
+    #ax_box1.set_xticks([1])
     ax_box1.set_xticklabels(['Quellen'])
     ax_box1.grid(axis='y', linestyle='--', alpha=0.3)
 
-# --- 2. Time-to-Recovery (Swarm Plot) ---
-if deletion_steps.size > 0: # Gab es überhaupt Löschungen?
+# --- 2. Time-to-Recovery ---
+if deletion_steps.size > 0: 
     if recovery_times:
         x_jitter = np.random.normal(1, 0.05, size=len(recovery_times))
         ax_box_rec.scatter(x_jitter, recovery_times, color='cyan', edgecolors='black', alpha=0.7, s=80)
         ax_box_rec.hlines(np.mean(recovery_times), 0.8, 1.2, colors='black', linestyles='--')
     
-    # Text-Info über gescheiterte Recoveries einfügen
     failed_count = len(deletion_steps) - len(recovery_times)
     recovery_rate = (len(recovery_times) / len(deletion_steps)) * 100 if len(deletion_steps) > 0 else 100.0
 
-    ax_box_rec.set_title('Erholunszeit', fontsize=10)
+    ax_box_rec.set_title('Erholungszeit', fontsize=10)
     ax_box_rec.set_ylabel('Schritte nach Einbruch', fontsize=10)
-    ax_box_rec.set_xticks([1])
-    labels = ax_box_rec.set_xticklabels([f"Nicht regeneriert: {failed_count} ({recovery_rate}%)"])
-    
-    # Das spezifische Label rot und fett machen
+    #ax_box_rec.set_xticks([1])
+    labels = ax_box_rec.set_xticklabels([f"Nicht regeneriert: {failed_count} ({recovery_rate:.1f}%)"])
     plt.setp(labels, color='red', fontweight='bold')
 
-# --- 3. Pfadeffizienz (Boxplot) ---
+# --- 3. Pfadeffizienz ---
 eff_food = df_global['avg_step_efficeny_to_food'].dropna()
 eff_nest = df_global['avg_step_efficeny_to_nest'].dropna()
 if not eff_food.empty:
@@ -306,7 +329,7 @@ if not eff_food.empty:
     ax_box2.set_ylim(-0.05, 1.05)
     ax_box2.grid(axis='y', linestyle='--', alpha=0.3)
 
-# --- 4. Gesamt-Durchsatz (Boxplot der Verteilung über die Zeit) ---
+# --- 4. Gesamt-Durchsatz ---
 global_throughput = pivot_df.sum(axis=1)
 bp4 = ax_box3.boxplot(global_throughput, patch_artist=True, widths=0.4)
 for box in bp4['boxes']:
@@ -316,11 +339,20 @@ ax_box3.set_ylabel('Durchsatz Summe', fontsize=10)
 ax_box3.set_xticklabels(['Gesamtverlauf'])
 ax_box3.grid(axis='y', linestyle='--', alpha=0.3)
 
+# --- 5. NEU: Jain's Fairness Index ---
+bp5 = ax_box_jain.boxplot(jains_index, patch_artist=True, widths=0.4)
+for box in bp5['boxes']:
+    box.set(facecolor='gold', alpha=0.5)
+ax_box_jain.set_title("Jain's Fairness Index", fontsize=10)
+ax_box_jain.set_ylabel('Fairness (1.0 = perfekt verteilt)', fontsize=10)
+ax_box_jain.set_ylim(-0.05, 1.05)
+ax_box_jain.set_xticklabels(['Verteilung'])
+ax_box_jain.grid(axis='y', linestyle='--', alpha=0.3)
+
 fig3.tight_layout()
 plt.subplots_adjust(wspace=0.4) 
 fig3.savefig(out_boxplots_png, bbox_inches='tight')
 plt.close(fig3)
-
 # ==========================================
 # 4. Finish
 # ==========================================
@@ -335,53 +367,45 @@ print(f"3: {out_boxplots_png}")
 out_metrics_csv = os.path.join(base_dir, "performance_summary.csv")
 
 def get_stats(data_list):
-    """Hilfsfunktion für Berechnungen - kompatibel mit Listen und Pandas Series"""
-    # Sicherstellen, dass wir mit einem NumPy Array arbeiten (verhindert den ValueError)
     data = np.array(data_list)
-    
-    # Prüfen ob das Array leer ist
     if data.size == 0:
         return [np.nan] * 4
-        
-    # NaNs entfernen (wichtig für min/max)
     data = data[~pd.isna(data)]
-    
     if data.size == 0:
         return [np.nan] * 4
-        
     return [np.mean(data), np.std(data), np.min(data), np.max(data)]
+
 # Stats berechnen
-stats_conv = get_stats(steps_to_reach_convergence_list)
-stats_rec  = get_stats(recovery_times)
-stats_tp   = get_stats(global_throughput)
+stats_conv  = get_stats(steps_to_reach_convergence_list)
+stats_rec   = get_stats(recovery_times)
+stats_tp    = get_stats(global_throughput)
 stats_eff_f = get_stats(eff_food)
 stats_eff_n = get_stats(eff_nest)
+stats_jain  = get_stats(jains_index) # NEU
 
 recovery_rate = (len(recovery_times) / len(deletion_steps)) * 100 if len(deletion_steps) > 0 else 100.0
 
+# Dictionary erweitert um Jains Fairness Index
 metrics_summary = {
-    "Metric": ["Convergence_Steps", "Recovery_Steps", "Global_Throughput", "Efficiency_Food", "Efficiency_Nest"],
-    "Mean": [stats_conv[0], stats_rec[0], stats_tp[0], stats_eff_f[0], stats_eff_n[0]],
-    "Std_Dev": [stats_conv[1], stats_rec[1], stats_tp[1], stats_eff_f[1], stats_eff_n[1]],
-    "Min": [stats_conv[2], stats_rec[2], stats_tp[2], stats_eff_f[2], stats_eff_n[2]],
-    "Max": [stats_conv[3], stats_rec[3], stats_tp[3], stats_eff_f[3], stats_eff_n[3]]
+    "Metric": [
+        "Convergence_Steps", "Recovery_Steps", "Global_Throughput", 
+        "Efficiency_Food", "Efficiency_Nest", "Jains_Fairness_Index"
+    ],
+    "Mean": [stats_conv[0], stats_rec[0], stats_tp[0], stats_eff_f[0], stats_eff_n[0], stats_jain[0]],
+    "Std_Dev": [stats_conv[1], stats_rec[1], stats_tp[1], stats_eff_f[1], stats_eff_n[1], stats_jain[1]],
+    "Min": [stats_conv[2], stats_rec[2], stats_tp[2], stats_eff_f[2], stats_eff_n[2], stats_jain[2]],
+    "Max": [stats_conv[3], stats_rec[3], stats_tp[3], stats_eff_f[3], stats_eff_n[3], stats_jain[3]]
 }
 
 df_summary = pd.DataFrame(metrics_summary)
-# Recovery Rate anhängen
 df_summary.loc[len(df_summary)] = ["Recovery_Rate_Pct", recovery_rate, np.nan, np.nan, np.nan]
-
-# Run_ID ganz vorne einfügen (sehr nützlich für Aggregationen)
 df_summary.insert(0, "Run_ID", run_id)
 
-# Als CSV speichern
 df_summary.to_csv(out_metrics_csv, index=False, sep=',', decimal='.')
 
-# --- NEU: Formatiertes Terminal Output ---
 print("\n" + "="*80)
 print(f" PERFORMANCE SUMMARY - RUN: {run_id}")
 print("="*80)
-# Wir runden die Tabelle für die Anzeige auf 2 Nachkommastellen
 print(df_summary.drop(columns=["Run_ID"]).to_string(index=False, justify='center', float_format=lambda x: f"{x:8.2f}"))
 print("="*80)
 print(f"Datei gespeichert: {out_metrics_csv}\n")

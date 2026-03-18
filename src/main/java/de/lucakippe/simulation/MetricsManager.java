@@ -40,7 +40,6 @@ public class MetricsManager {
 
 
 
-
     MetricsManager(Nest nest, Food[] foodSources, int foodSpawnIntervall, int foodSourceCount, boolean antiPheromoneActive, int totalAnts) {
         this.nest = nest;
         this.foodSources = foodSources;
@@ -198,5 +197,9 @@ public class MetricsManager {
         }
         
         sourceMetricsWriter.flush();
+    }
+
+    public Path getSimulationDataDir() {
+        return simulationDataDir;
     }
 }
