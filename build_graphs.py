@@ -7,7 +7,7 @@ import os
 import numpy as np
 
 
-troughput_convergence = 0.8
+troughput_convergence = 1
 # ==========================================
 # 1. Handle Input Argument & Paths
 # ==========================================
@@ -63,7 +63,7 @@ ax1.stackplot(pivot_df.index, pivot_df.values.T,
              colors=[colors[sid] for sid in source_ids], alpha=0.7)
 
 # Neue Werte für Marker-Positionen
-marker_y_start = -1  # Reduziert den Startpunkt
+marker_y_start = -1 # Reduziert den Startpunkt
 marker_spacing = 1   # Reduziert den Abstand zwischen den Markern
 
 steps_to_reach_convergence_list = []
@@ -74,9 +74,12 @@ recovery_times = []  # Liste für Statistik: (time_delta)
 # Wir nutzen das bereits berechnete global_throughput
 global_throughput = pivot_df.sum(axis=1)
 
+
 # Puffer und Bestätigungsfenster definieren
-puffer = 0.98  # 90% des alten Niveaus reichen als "recovered"
-min_stable_steps = 100 
+puffer = 0.9  # 90% des alten Niveaus reichen als "recovered"
+min_stable_steps = 100
+steps_for_avg = 50
+
 
 deletion_steps = df_source[df_source['deletion_step'] != -1]['deletion_step'].unique()
 
@@ -93,10 +96,10 @@ global_throughput = pivot_df.sum(axis=1)
 
 for d_step in deletion_steps:
     # 1. Zielwert definieren (Durchschnitt vor der Löschung)
-    pre_data = global_throughput[(global_throughput.index >= d_step - 50) & (global_throughput.index < d_step)]
+    pre_data = global_throughput[(global_throughput.index >= d_step - steps_for_avg) & (global_throughput.index < d_step)]
     
     if pre_data.empty: continue
-    target_value = pre_data.mean() * 0.9
+    target_value = pre_data.mean() * puffer
     
     # 2. Den "Tiefpunkt" abwarten
     # Wir suchen erst ab dem Punkt, an dem der Durchsatz UNTER den Zielwert gefallen ist
@@ -113,7 +116,7 @@ for d_step in deletion_steps:
     for step, value in actual_recovery_search.items():
         if value >= target_value:
             # Stabilitäts-Check (100 Schritte)
-            future = global_throughput[(global_throughput.index >= step) & (global_throughput.index <= step + 100)]
+            future = global_throughput[(global_throughput.index >= step) & (global_throughput.index <= step + min_stable_steps)]
             if not future.empty and future.min() >= target_value:
                 recovery_step = step
                 recovery_times.append(recovery_step - d_step)
@@ -130,14 +133,14 @@ for i, sid in enumerate(source_ids):
     # Marker: Creation
     creation_step = source_data['creation_step'].max()
     if creation_step != -1:
-        ax1.scatter(creation_step, y_pos, color=color, s=150,
+        ax1.scatter(creation_step, y_pos, color=color, s=120,
                     marker=mmarkers.MarkerStyle('o', fillstyle='left'),
                     edgecolors='black', zorder=10)
 
     # Marker: Deletion
     deletion_step = source_data['deletion_step'].max()
     if deletion_step != -1:
-        ax1.scatter(deletion_step, y_pos, color=color, s=150,
+        ax1.scatter(deletion_step, y_pos, color=color, s=130,
                     marker=mmarkers.MarkerStyle('o', fillstyle='right'),
                     edgecolors='black', zorder=10)
 
@@ -148,7 +151,7 @@ for i, sid in enumerate(source_ids):
         steps_to_reach_convergence = first_step_over_convergence - creation_step
         steps_to_reach_convergence_list.append(steps_to_reach_convergence)
 
-        ax1.scatter(first_step_over_convergence, y_pos, color=color, s=180, marker='^',
+        ax1.scatter(first_step_over_convergence, y_pos, color=color, s=110, marker='^',
                     edgecolors='black', zorder=10)
         
 if recovery_events:
@@ -284,41 +287,51 @@ jains_index = (sum_tp ** 2) / denominator
 jains_index = jains_index.fillna(0)
 
 
-
 # ==========================================
 # GRAPH 3: BOXPLOTS (Time to Throughput & Efficiency)
 # ==========================================
-# Auf 5 Subplots erweitert für Jain's Fairness Index
-fig3, (ax_box1, ax_box_rec, ax_box2, ax_box3, ax_box_jain) = plt.subplots(1, 5, figsize=(22, 5))
+fig3, (ax_box1, ax_box_rec, ax_box2, ax_box3, ax_box_jain) = plt.subplots(1, 5, figsize=(22, 6))
 
-# --- 1. Schritte bis Durchsatz-Ziel ---
+# --- 1. Schritte bis Durchsatz-Ziel (Convergence) ---
+total_sources = len(source_ids)
+converged_count = len(steps_to_reach_convergence_list)
+failed_conv = total_sources - converged_count
+conv_rate = (converged_count / total_sources * 100) if total_sources > 0 else 0
+
 if steps_to_reach_convergence_list:
     x_coords = np.random.normal(1, 0.04, size=len(steps_to_reach_convergence_list))
+    med_conv = np.median(steps_to_reach_convergence_list)
     ax_box1.scatter(x_coords, steps_to_reach_convergence_list, alpha=0.6, edgecolors='black', color='orange', s=60)
-    ax_box1.hlines(np.mean(steps_to_reach_convergence_list), 0.8, 1.2, colors='red', linestyles='--', lw=2)
-    ax_box1.set_title('Zeit bis Convergence', fontsize=10)
-    ax_box1.set_ylabel('Schritte', fontsize=10)
-    #ax_box1.set_xticks([1])
-    ax_box1.set_xticklabels(['Quellen'])
-    ax_box1.grid(axis='y', linestyle='--', alpha=0.3)
+    ax_box1.hlines(np.median(steps_to_reach_convergence_list), 0.8, 1.2, colors='black', linestyles='--', lw=2)
+
+ax_box1.set_title('Zeit bis Convergence', fontsize=10)
+ax_box1.set_ylabel('Schritte', fontsize=10)
+ax_box1.set_xticks([1])
+# Rotes Label für Convergence-Fehler
+lbl_conv = ax_box1.set_xticklabels([f"Nicht konvergiert:\n{failed_conv} ({100-conv_rate:.1f}%)"])
+plt.setp(lbl_conv, color='red', fontweight='bold', fontsize=9)
+ax_box1.grid(axis='y', linestyle='--', alpha=0.3)
 
 # --- 2. Time-to-Recovery ---
-if deletion_steps.size > 0: 
+total_deletions = len(deletion_steps)
+recovered_count = len(recovery_times)
+failed_rec = total_deletions - recovered_count
+rec_rate = (recovered_count / total_deletions * 100) if total_deletions > 0 else 0
+
+if total_deletions > 0:
     if recovery_times:
         x_jitter = np.random.normal(1, 0.05, size=len(recovery_times))
         ax_box_rec.scatter(x_jitter, recovery_times, color='cyan', edgecolors='black', alpha=0.7, s=80)
-        ax_box_rec.hlines(np.mean(recovery_times), 0.8, 1.2, colors='black', linestyles='--')
+        ax_box_rec.hlines(np.median(recovery_times), 0.8, 1.2, colors='black', linestyles='--', lw=2)
     
-    failed_count = len(deletion_steps) - len(recovery_times)
-    recovery_rate = (len(recovery_times) / len(deletion_steps)) * 100 if len(deletion_steps) > 0 else 100.0
-
     ax_box_rec.set_title('Erholungszeit', fontsize=10)
     ax_box_rec.set_ylabel('Schritte nach Einbruch', fontsize=10)
-    #ax_box_rec.set_xticks([1])
-    labels = ax_box_rec.set_xticklabels([f"Nicht regeneriert: {failed_count} ({recovery_rate:.1f}%)"])
-    plt.setp(labels, color='red', fontweight='bold')
+    ax_box_rec.set_xticks([1])
+    # Rotes Label für Recovery-Fehler
+    lbl_rec = ax_box_rec.set_xticklabels([f"Nicht regeneriert:\n{failed_rec} ({100-rec_rate:.1f}%)"])
+    plt.setp(lbl_rec, color='red', fontweight='bold', fontsize=9)
 
-# --- 3. Pfadeffizienz ---
+# --- 3. Pfadeffizienz (unverändert) ---
 eff_food = df_global['avg_step_efficeny_to_food'].dropna()
 eff_nest = df_global['avg_step_efficeny_to_nest'].dropna()
 if not eff_food.empty:
@@ -329,30 +342,29 @@ if not eff_food.empty:
     ax_box2.set_ylim(-0.05, 1.05)
     ax_box2.grid(axis='y', linestyle='--', alpha=0.3)
 
-# --- 4. Gesamt-Durchsatz ---
-global_throughput = pivot_df.sum(axis=1)
+# --- 4. Gesamt-Durchsatz (unverändert) ---
 bp4 = ax_box3.boxplot(global_throughput, patch_artist=True, widths=0.4)
 for box in bp4['boxes']:
     box.set(facecolor='magenta', alpha=0.5)
 ax_box3.set_title('Ø Gesamt-Durchsatz', fontsize=10)
-ax_box3.set_ylabel('Durchsatz Summe', fontsize=10)
-ax_box3.set_xticklabels(['Gesamtverlauf'])
+ax_box3.set_xticklabels([''])
 ax_box3.grid(axis='y', linestyle='--', alpha=0.3)
 
-# --- 5. NEU: Jain's Fairness Index ---
+# --- 5. Jain's Fairness Index (unverändert) ---
 bp5 = ax_box_jain.boxplot(jains_index, patch_artist=True, widths=0.4)
 for box in bp5['boxes']:
     box.set(facecolor='gold', alpha=0.5)
 ax_box_jain.set_title("Jain's Fairness Index", fontsize=10)
-ax_box_jain.set_ylabel('Fairness (1.0 = perfekt verteilt)', fontsize=10)
 ax_box_jain.set_ylim(-0.05, 1.05)
-ax_box_jain.set_xticklabels(['Verteilung'])
+ax_box_jain.set_xticklabels([''])
 ax_box_jain.grid(axis='y', linestyle='--', alpha=0.3)
 
 fig3.tight_layout()
-plt.subplots_adjust(wspace=0.4) 
+plt.subplots_adjust(wspace=0.4, bottom=0.2) # Mehr Platz unten für die roten Texte
 fig3.savefig(out_boxplots_png, bbox_inches='tight')
 plt.close(fig3)
+
+
 # ==========================================
 # 4. Finish
 # ==========================================
@@ -369,39 +381,42 @@ out_metrics_csv = os.path.join(base_dir, "performance_summary.csv")
 def get_stats(data_list):
     data = np.array(data_list)
     if data.size == 0:
-        return [np.nan] * 4
+        return [np.nan] * 5 # Jetzt 5 Werte
     data = data[~pd.isna(data)]
     if data.size == 0:
-        return [np.nan] * 4
-    return [np.mean(data), np.std(data), np.min(data), np.max(data)]
-
+        return [np.nan] * 5
+        
+    return [np.mean(data), np.std(data), np.min(data), np.max(data), np.median(data)]
 # Stats berechnen
+# Stats berechnen (liefert jetzt 5 Werte)
 stats_conv  = get_stats(steps_to_reach_convergence_list)
 stats_rec   = get_stats(recovery_times)
 stats_tp    = get_stats(global_throughput)
 stats_eff_f = get_stats(eff_food)
 stats_eff_n = get_stats(eff_nest)
-stats_jain  = get_stats(jains_index) # NEU
+stats_jain  = get_stats(jains_index)
 
-recovery_rate = (len(recovery_times) / len(deletion_steps)) * 100 if len(deletion_steps) > 0 else 100.0
-
-# Dictionary erweitert um Jains Fairness Index
 metrics_summary = {
-    "Metric": [
-        "Convergence_Steps", "Recovery_Steps", "Global_Throughput", 
-        "Efficiency_Food", "Efficiency_Nest", "Jains_Fairness_Index"
-    ],
-    "Mean": [stats_conv[0], stats_rec[0], stats_tp[0], stats_eff_f[0], stats_eff_n[0], stats_jain[0]],
-    "Std_Dev": [stats_conv[1], stats_rec[1], stats_tp[1], stats_eff_f[1], stats_eff_n[1], stats_jain[1]],
-    "Min": [stats_conv[2], stats_rec[2], stats_tp[2], stats_eff_f[2], stats_eff_n[2], stats_jain[2]],
-    "Max": [stats_conv[3], stats_rec[3], stats_tp[3], stats_eff_f[3], stats_eff_n[3], stats_jain[3]]
+    "Metric": ["Convergence_Steps", "Recovery_Steps", "Global_Throughput", 
+               "Efficiency_Food", "Efficiency_Nest", "Jains_Fairness_Index"],
+    "Mean":   [stats_conv[0], stats_rec[0], stats_tp[0], stats_eff_f[0], stats_eff_n[0], stats_jain[0]],
+    "Median": [stats_conv[4], stats_rec[4], stats_tp[4], stats_eff_f[4], stats_eff_n[4], stats_jain[4]], # NEU
+    "Std_Dev":[stats_conv[1], stats_rec[1], stats_tp[1], stats_eff_f[1], stats_eff_n[1], stats_jain[1]],
+    "Min":    [stats_conv[2], stats_rec[2], stats_tp[2], stats_eff_f[2], stats_eff_n[2], stats_jain[2]],
+    "Max":    [stats_conv[3], stats_rec[3], stats_tp[3], stats_eff_f[3], stats_eff_n[3], stats_jain[3]]
 }
 
 df_summary = pd.DataFrame(metrics_summary)
-df_summary.loc[len(df_summary)] = ["Recovery_Rate_Pct", recovery_rate, np.nan, np.nan, np.nan]
-df_summary.insert(0, "Run_ID", run_id)
 
-df_summary.to_csv(out_metrics_csv, index=False, sep=',', decimal='.')
+# Raten anhängen (mit NaN für den Median-Platzhalter)
+df_summary.loc[len(df_summary)] = ["Convergence_Rate_Pct", conv_rate, np.nan, np.nan, np.nan, np.nan]
+df_summary.loc[len(df_summary)] = ["Recovery_Rate_Pct", rec_rate, np.nan, np.nan, np.nan, np.nan]
+
+
+# Run_ID einfügen und speichern
+df_summary.insert(0, "Run_ID", run_id)
+df_summary.to_csv(out_metrics_csv, index=False)
+
 
 print("\n" + "="*80)
 print(f" PERFORMANCE SUMMARY - RUN: {run_id}")
