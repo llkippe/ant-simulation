@@ -7,7 +7,6 @@ import os
 import numpy as np
 
 
-troughput_convergence = 1
 # ==========================================
 # 1. Handle Input Argument & Paths
 # ==========================================
@@ -48,14 +47,27 @@ colors = {sid: cmap(i % 10) for i, sid in enumerate(source_ids)}
 #max_step = df_source['step'].max()
 #xticks = np.arange(0, max_step+100, 1000)
 
-# Liste zum Sammeln der Daten für den Boxplot später
-steps_to_reach_convergence_list = []
+# convergence daten 
+troughput_convergence = 1
+#steps_to_reach_convergence_list = []
+convergence_data_pairs = []
+
+# Wir nutzen das bereits berechnete global_throughput
+global_throughput = pivot_df.sum(axis=1)
+deletion_steps = df_source[df_source['deletion_step'] != -1]['deletion_step'].unique()
+
+
+recovery_events = [] # Liste für Marker: (step, throughput_value)
+recovery_times = []  # Liste für Statistik: (time_delta)
+# Puffer und Bestätigungsfenster definieren
+puffer = 0.9  # 90% des alten Niveaus reichen als "recovered"
+min_stable_steps = 100
+steps_for_avg = 50
 
 # ==========================================
 # GRAPH 1: SOURCE THROUGHPUT
 # ==========================================
 fig1, ax1 = plt.subplots(figsize=(16, 8))
-
 
 
 ax1.stackplot(pivot_df.index, pivot_df.values.T, 
@@ -66,33 +78,6 @@ ax1.stackplot(pivot_df.index, pivot_df.values.T,
 marker_y_start = -1 # Reduziert den Startpunkt
 marker_spacing = 1   # Reduziert den Abstand zwischen den Markern
 
-steps_to_reach_convergence_list = []
-
-recovery_events = [] # Liste für Marker: (step, throughput_value)
-recovery_times = []  # Liste für Statistik: (time_delta)
-
-# Wir nutzen das bereits berechnete global_throughput
-global_throughput = pivot_df.sum(axis=1)
-
-
-# Puffer und Bestätigungsfenster definieren
-puffer = 0.9  # 90% des alten Niveaus reichen als "recovered"
-min_stable_steps = 100
-steps_for_avg = 50
-
-
-deletion_steps = df_source[df_source['deletion_step'] != -1]['deletion_step'].unique()
-
-# 1. Wir berechnen den globalen Durchsatz direkt aus der Grafik-Basis
-global_throughput = pivot_df.sum(axis=1)
-
-recovery_events = []
-recovery_times = []
-
-recovery_events = []
-recovery_times = []
-
-global_throughput = pivot_df.sum(axis=1)
 
 for d_step in deletion_steps:
     # 1. Zielwert definieren (Durchschnitt vor der Löschung)
@@ -149,14 +134,15 @@ for i, sid in enumerate(source_ids):
     if creation_step != -1 and not over_convergence.empty:
         first_step_over_convergence = over_convergence['step'].min()
         steps_to_reach_convergence = first_step_over_convergence - creation_step
-        steps_to_reach_convergence_list.append(steps_to_reach_convergence)
+        
+        convergence_data_pairs.append((sid, steps_to_reach_convergence))
 
         ax1.scatter(first_step_over_convergence, y_pos, color=color, s=110, marker='^',
                     edgecolors='black', zorder=10)
         
 if recovery_events:
     r_steps, r_values = zip(*recovery_events)
-    ax1.scatter(r_steps, r_values, color='cyan', s=250, marker='*', 
+    ax1.scatter(r_steps, r_values, color='darkviolet', s=90, marker='D', 
                 edgecolors='black', label='Resilienz erreicht', zorder=20)
 
 
@@ -192,7 +178,7 @@ ax1_twin = ax1.twinx()
 
 # Plotting the line
 line_twin = ax1_twin.plot(df_global['step'], ee_ratio, color='black', 
-                          linewidth=2, linestyle=':', label='Exploitation Ratio (0-1)')
+                          linewidth=2, linestyle=':', label='Exploitation Rate (0-1)')
 
 # ax1 current range: [lowest_y, 5] (based on your earlier code)
 throughput_min, throughput_max = ax1.get_ylim()
@@ -220,6 +206,8 @@ marker_legend_elements = [
            label='Futterquelle gelöscht', markerfacecolor='gray', markersize=10, markeredgecolor='black'),
     Line2D([0], [0], marker='^', color='w', label=f'Durchsatz > {troughput_convergence}',
            markerfacecolor='gray', markersize=12, markeredgecolor='black'),
+    Line2D([0], [0], marker='D', color='w', label='Resilienz erreicht',
+           markerfacecolor='darkviolet', markersize=8, markeredgecolor='black'),
 ]
 
 
@@ -294,15 +282,18 @@ fig3, (ax_box1, ax_box_rec, ax_box2, ax_box3, ax_box_jain) = plt.subplots(1, 5, 
 
 # --- 1. Schritte bis Durchsatz-Ziel (Convergence) ---
 total_sources = len(source_ids)
-converged_count = len(steps_to_reach_convergence_list)
+converged_count = len(convergence_data_pairs)
 failed_conv = total_sources - converged_count
 conv_rate = (converged_count / total_sources * 100) if total_sources > 0 else 0
 
-if steps_to_reach_convergence_list:
-    x_coords = np.random.normal(1, 0.04, size=len(steps_to_reach_convergence_list))
-    med_conv = np.median(steps_to_reach_convergence_list)
-    ax_box1.scatter(x_coords, steps_to_reach_convergence_list, alpha=0.6, edgecolors='black', color='orange', s=60)
-    ax_box1.hlines(np.median(steps_to_reach_convergence_list), 0.8, 1.2, colors='black', linestyles='--', lw=2)
+if convergence_data_pairs:
+    # 1. Daten entpacken: sids ist eine Liste der IDs, steps eine Liste der Werte
+    point_sids, point_steps = zip(*convergence_data_pairs)
+    point_colors = [colors[sid] for sid in point_sids]
+    x_coords = np.random.normal(1, 0.04, size=converged_count)
+    ax_box1.scatter(x_coords, point_steps, alpha=0.7, edgecolors='black', 
+                      color=point_colors, s=70, marker='^')
+    ax_box1.hlines(np.median(point_steps), 0.8, 1.2, colors='black', linestyles='--', lw=2)
 
 ax_box1.set_title('Zeit bis Convergence', fontsize=10)
 ax_box1.set_ylabel('Schritte', fontsize=10)
@@ -321,7 +312,7 @@ rec_rate = (recovered_count / total_deletions * 100) if total_deletions > 0 else
 if total_deletions > 0:
     if recovery_times:
         x_jitter = np.random.normal(1, 0.05, size=len(recovery_times))
-        ax_box_rec.scatter(x_jitter, recovery_times, color='cyan', edgecolors='black', alpha=0.7, s=80)
+        ax_box_rec.scatter(x_jitter, recovery_times, color='darkviolet', s=60, marker='D', edgecolors='black', alpha=0.7)
         ax_box_rec.hlines(np.median(recovery_times), 0.8, 1.2, colors='black', linestyles='--', lw=2)
     
     ax_box_rec.set_title('Erholungszeit', fontsize=10)
@@ -345,7 +336,7 @@ if not eff_food.empty:
 # --- 4. Gesamt-Durchsatz (unverändert) ---
 bp4 = ax_box3.boxplot(global_throughput, patch_artist=True, widths=0.4)
 for box in bp4['boxes']:
-    box.set(facecolor='magenta', alpha=0.5)
+    box.set(facecolor='gray', alpha=0.5)
 ax_box3.set_title('Ø Gesamt-Durchsatz', fontsize=10)
 ax_box3.set_xticklabels([''])
 ax_box3.grid(axis='y', linestyle='--', alpha=0.3)
@@ -389,6 +380,8 @@ def get_stats(data_list):
     return [np.mean(data), np.std(data), np.min(data), np.max(data), np.median(data)]
 # Stats berechnen
 # Stats berechnen (liefert jetzt 5 Werte)
+_, steps_to_reach_convergence_list = zip(*convergence_data_pairs)
+
 stats_conv  = get_stats(steps_to_reach_convergence_list)
 stats_rec   = get_stats(recovery_times)
 stats_tp    = get_stats(global_throughput)
