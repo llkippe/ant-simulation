@@ -82,18 +82,35 @@ public class Simulation {
     }
 
     public void replaceOldestFoodSource() {
-        int oldestIndex = 0;
-        // find the oldest food source
-        for (int i = 1; i < foodSources.length; i++) {
-            if (foodSources[i].getCreatedAtStep()
-                < foodSources[oldestIndex].getCreatedAtStep()) {
-                oldestIndex = i;
+        if (foodSources.length == 0) return;
+
+        // 1. Berechne das Alter jeder Quelle und die Gesamtsumme des Alters
+        double[] ages = new double[foodSources.length];
+        double totalAge = 0;
+
+        for (int i = 0; i < foodSources.length; i++) {
+            // Alter = Aktueller Schritt minus Geburts-Schritt
+            ages[i] = (double) (stepCount - foodSources[i].getCreatedAtStep());
+            totalAge += ages[i];
+        }
+
+        // 2. Würfeln (Roulette Wheel)
+        double roll = Math.random() * totalAge;
+        double cumulativeAge = 0;
+        int indexToDelete = 0;
+
+        for (int i = 0; i < foodSources.length; i++) {
+            cumulativeAge += ages[i];
+            if (roll <= cumulativeAge) {
+                indexToDelete = i;
+                break;
             }
         }
-        
-        metricsManager.reportSourceDeleted(foodSources[oldestIndex].getId(), stepCount);
 
-        foodSources[oldestIndex] = createRandomFoodSource();
+        // 3. Löschen und Ersetzen
+        metricsManager.reportSourceDeleted(foodSources[indexToDelete].getId(), stepCount);
+        foodSources[indexToDelete] = createRandomFoodSource();
+        
     }
 
 

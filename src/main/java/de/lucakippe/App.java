@@ -36,7 +36,7 @@ public class App {
         //     e.printStackTrace();
         // }
     
-       Simulation sim = new Simulation(true, true, 4, 2000);
+       Simulation sim = new Simulation(true, true, 4, 1000);
         
        Renderer visualizer = new Renderer(sim); // Pass the simulation to the renderer
        PApplet.runSketch(new String[]{"AntSimulation"}, visualizer);
