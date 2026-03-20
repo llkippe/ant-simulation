@@ -40,22 +40,19 @@ public class MetricsManager {
 
 
 
-    MetricsManager(Nest nest, Food[] foodSources, int foodSpawnIntervall, int foodSourceCount, boolean antiPheromoneActive, int totalAnts) {
+    MetricsManager(Nest nest, Food[] foodSources, int foodSpawnIntervall, int foodSourceCount, boolean antiPheromoneActive, int totalAnts, String baseDirName, int runIndex) {
         this.nest = nest;
         this.foodSources = foodSources;
 
         try {
-            // Create 'data' directory if it doesn't exist
             Path dataDir = Paths.get("data");
-            if (!Files.exists(dataDir)) {
-                Files.createDirectory(dataDir);
-            }
-
-            // Create a unique subfolder for this simulation
-            String timestamp = String.valueOf(System.currentTimeMillis());
-            //String uuid = java.util.UUID.randomUUID().toString();
-            simulationDataDir = dataDir.resolve(timestamp + "_" + foodSourceCount + "_" + foodSpawnIntervall + "_" + antiPheromoneActive);
-            Files.createDirectory(simulationDataDir);
+            // Erstelle den Config-Überordner (z.B. data/177..._4_2000_true)
+            Path configDir = dataDir.resolve(baseDirName);
+            Files.createDirectories(configDir);
+            
+            // Erstelle den spezifischen Run-Ordner (z.B. .../run_1)
+            simulationDataDir = configDir.resolve("run_" + runIndex);
+            Files.createDirectories(simulationDataDir);
 
             // Initialize writers for both metrics files
             sourceMetricsWriter = new PrintWriter(simulationDataDir.resolve("source_metrics.csv").toFile());

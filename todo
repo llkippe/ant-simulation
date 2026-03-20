@@ -1,7 +1,8 @@
 
 einen hyperparameter festhalten den andern veraendern
--> deutlich laenger testlaeufe ( gegen explotation einzelner futterqullen)
 -> mehrere mit selben settings um avg zu bekommen. davor ueberlegen wie man die daten dann avg macht. -> automatisch
+
+
 
 
 

@@ -160,7 +160,13 @@ upper_tick_limit = int(np.ceil(max_total_throughput))
 yticks = np.arange(len(source_ids) * -1, upper_tick_limit + 1, 1)
 ax1.set_yticks(yticks)
 
-#ax1.set_xticks(xticks)
+max_step = df_source['step'].max()
+tick_spacing = max(1000, (max_step // 10)) 
+# Rundet auf das nächste Tausender für saubere Zahlen
+tick_spacing = (tick_spacing // 1000) * 1000 
+
+xticks = np.arange(0, max_step + tick_spacing, tick_spacing)
+ax1.set_xticks(xticks)
 
 
 ax1.set_xlabel('Simulations Schritt', fontsize=12)

@@ -30,15 +30,22 @@ public class Simulation {
     private Pheromones pheromones;
 
     
-    public Simulation(boolean isRendered, boolean antiPheromoneActive, int simFoodSources, int newFoodSpawnIntervall) {
+    public Simulation(boolean isRendered, boolean antiPheromoneActive, int simFoodSources, int newFoodSpawnIntervall, String baseDirName, int runIndex) {
         foodSourceCount = simFoodSources;
         foodSpawnIntervall = newFoodSpawnIntervall;
-        maxStepCount = newFoodSpawnIntervall * 8;
+        
+        // Ein Basis-Faktor, wie viele "Events" wir mindestens sehen wollen
+        int minEvents = 8; 
+        // Wir nehmen entweder (Anzahl Quellen * 1.5) oder mindestens 6
+        int eventCount = Math.max(minEvents, (int)(simFoodSources * 1.5));
+        maxStepCount = newFoodSpawnIntervall * eventCount;
+        
         
         
         nest = new Nest(300, 300, 35);
         foodSources = new Food[foodSourceCount];
-        metricsManager = new MetricsManager(nest, foodSources, foodSpawnIntervall, foodSourceCount, antiPheromoneActive, NUM_ANTS);
+        metricsManager = new MetricsManager(nest, foodSources, foodSpawnIntervall, foodSourceCount, antiPheromoneActive, NUM_ANTS, baseDirName, runIndex);
+        
         for (int i = 0; i < foodSources.length; i++) {
             foodSources[i] = createRandomFoodSource();
         }
@@ -60,8 +67,8 @@ public class Simulation {
         stepCount++;
         if(stepCount > maxStepCount) return;
         if(stepCount == maxStepCount) {
-            System.out.println("Simulation Finished");
             PythonScriptRunner.runPythonScript(metricsManager.getSimulationDataDir().toString());
+            System.out.println("Simulation Finished");
             return;
         }
 

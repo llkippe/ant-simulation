@@ -8,38 +8,52 @@ import java.util.concurrent.TimeUnit;
 
 public class App {
     public static void main(String[] args) {
-        // int[] foodCount = {2, 4, 8};
-        // int[] foodSpawnInterval = {1000, 2000, 4000};
+        // Definition der Batch-Größe
+        int N = 10; 
 
-        // ExecutorService executor = Executors.newFixedThreadPool(4);
-        // for (int i = 0; i < foodCount.length; i++) {
-        //     for (int j = 0; j < foodSpawnInterval.length; j++) {
-        //         final int foodIndex = i;
-        //         final int spawnIndex = j;
+        // Deine gewünschten Konfigurationen: {FoodSources, SpawnInterval}
+        // (4 Quellen / 2000 Intervall überschneidet sich in deinen Gruppen, 
+        //  daher schreiben wir es hier nur einmal auf, um Redundanz zu sparen)
+        int[][] configs = {
+            {2, 2000}, {4, 2000}, {8, 2000}, // Gruppe 1 (Quellen im Fokus)
+            {4, 1000}, {4, 4000}             // Gruppe 2 (Intervalle im Fokus)
+        };
 
-        //         executor.submit(() -> {
-        //             Simulation sim = new Simulation(false,true, foodCount[foodIndex], foodSpawnInterval[spawnIndex]);
-                    
-        //         });
-        //         executor.submit(() -> {
-        //             Simulation sim = new Simulation(false, false,foodCount[foodIndex], foodSpawnInterval[spawnIndex]);
-                    
-        //         });
-        //     }
-        // }
+        boolean[] antiPheromones = {true, false};
 
-        // executor.shutdown();
-        // try {
-        //     // Wait for all tasks to finish (timeout after 1 hour)
-        //     executor.awaitTermination(1, TimeUnit.HOURS);
-        // } catch (InterruptedException e) {
-        //     e.printStackTrace();
-        // }
+        ExecutorService executor = Executors.newFixedThreadPool(4);
+
+        for (int[] config : configs) {
+            for (boolean ap : antiPheromones) {
+                int foodCount = config[0];
+                int interval = config[1];
+
+                // Generiere DEN SELBEN Timestamp für den gesamten Batch
+                String timestamp = String.valueOf(System.currentTimeMillis());
+                String baseDirName = timestamp + "_" + foodCount + "_" + interval + "_" + ap;
+            
+                for (int run = 1; run <= N; run++) {
+                    final int currentRun = run;
+                    executor.submit(() -> {
+                        // Wir übergeben baseDirName und currentRun an die Simulation
+                        new Simulation(false, ap, foodCount, interval, baseDirName, currentRun);
+                    });
+                }
+            }
+        }
+
+                executor.shutdown();
+        try {
+            // Wait for all tasks to finish (timeout after 1 hour)
+            executor.awaitTermination(1, TimeUnit.HOURS);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     
-       Simulation sim = new Simulation(true, true, 4, 1000);
+        //Simulation sim = new Simulation(true, true, 4, 1000);
         
-       Renderer visualizer = new Renderer(sim); // Pass the simulation to the renderer
-       PApplet.runSketch(new String[]{"AntSimulation"}, visualizer);
+       //Renderer visualizer = new Renderer(sim); // Pass the simulation to the renderer
+       //PApplet.runSketch(new String[]{"AntSimulation"}, visualizer);
     }
 
 
