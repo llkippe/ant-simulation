@@ -256,34 +256,24 @@ for config_folder in os.listdir(data_dir):
                             all_recovery_steps.append(recovery_step)
                             break
 
-            # Global Throughput (Run-basierte Verteilung)
-            run_mean_tp = global_throughput.mean()
-            all_global_throughputs.append(run_mean_tp)
+            # Global Throughput
+            global_tp = pivot_df.sum(axis=1)
+            all_global_throughputs.extend(global_tp.values)
 
             # Jain's Fairness
             sum_tp = pivot_df.sum(axis=1)
             sum_sq_tp = (pivot_df ** 2).sum(axis=1)
-            active_counts = pd.Series(0, index=pivot_df.index)
-            for sid in source_ids:
-                s_data = df_sm[df_sm['source_id'] == sid]
-                c_step = s_data['creation_step'].max()
-                d_step = s_data['deletion_step'].max()
-                if c_step != -1:
-                    mask = (pivot_df.index >= c_step)
-                    if d_step != -1:
-                        mask = mask & (pivot_df.index <= d_step)
-                    active_counts += mask.astype(int)
-
+            active_counts = (pivot_df > 0).sum(axis=1).replace(0, np.nan)
             denominator = (active_counts * sum_sq_tp).replace(0, np.nan)
             jains_index = (sum_tp ** 2) / denominator
+            jains_index = jains_index.clip(upper=1).fillna(0)
             if not jains_index.empty:
-                all_jains.append(jains_index.mean())
+                all_jains.extend(jains_index.dropna().values)
 
-        # Efficiency aus global_metrics (run-basiert vergleichbar)
+        # Efficiency aus global_metrics
         for df_gm in all_global_metrics:
-            if not df_gm.empty:
-                all_efficiency_food.append(df_gm['avg_step_efficeny_to_food'].mean())
-                all_efficiency_nest.append(df_gm['avg_step_efficeny_to_nest'].mean())
+            all_efficiency_food.extend(df_gm['avg_step_efficeny_to_food'].dropna().values)
+            all_efficiency_nest.extend(df_gm['avg_step_efficeny_to_nest'].dropna().values)
 
         # Raten aus aggregierten Daten
         merged_summary = pd.concat(summary_dfs, ignore_index=True)
