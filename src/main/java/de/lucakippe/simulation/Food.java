@@ -1,7 +1,7 @@
 package de.lucakippe.simulation;
 
 public class Food {
-    private static int nextId = 0; // starting at 1 because 0 is used for the nest in metrics
+
 
 
     private final int id;
@@ -12,13 +12,12 @@ public class Food {
     int createdAtStep; 
 
 
-    public Food(int posX, int posY, int size, int currentStepCount) {
+    public Food(int posX, int posY, int size, int currentStepCount, int id) {
         this.posX = posX;
         this.posY = posY;
-        
+        this.id = id;
 
         this.radius = size;
-        this.id = nextId++;
 
         this.createdAtStep = currentStepCount;
     }

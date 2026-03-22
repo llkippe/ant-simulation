@@ -23,6 +23,7 @@ public class Simulation {
     public int foodSourceCount;
     public int foodSpawnIntervall;
     private Food[] foodSources;
+    private int nextFoodSourceId = 0;
 
     MetricsManager metricsManager;
     
@@ -154,18 +155,23 @@ public class Simulation {
             if (tooClose) continue;
 
 
-            Food newFood = new Food(posX, posY, foodSourceSize, stepCount); 
+            Food newFood = new Food(posX, posY, foodSourceSize, stepCount, nextFoodSourceId); 
+            nextFoodSourceId++;
             metricsManager.reportSourceCreated(newFood.getId(), stepCount);
             return newFood;
         }
 
         // fallback if map is crowded
-        return new Food(
+        Food newFood =  new Food(
             (int)(Math.random() * WIDTH),
             (int)(Math.random() * HEIGHT),
             foodSourceSize,
-            stepCount
+            stepCount,
+            nextFoodSourceId
+        
         );
+        nextFoodSourceId++;
+        return newFood;
     }
 
     public static double distWrapped(int x1, int y1, int x2, int y2) {

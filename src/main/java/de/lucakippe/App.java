@@ -9,14 +9,17 @@ import java.util.concurrent.TimeUnit;
 public class App {
     public static void main(String[] args) {
         // Definition der Batch-Größe
-        int N = 10; 
+        int N = 2; 
 
         // Deine gewünschten Konfigurationen: {FoodSources, SpawnInterval}
         // (4 Quellen / 2000 Intervall überschneidet sich in deinen Gruppen, 
         //  daher schreiben wir es hier nur einmal auf, um Redundanz zu sparen)
         int[][] configs = {
-            {2, 2000}, {4, 2000}, {8, 2000}, // Gruppe 1 (Quellen im Fokus)
-            {4, 1000}, {4, 4000}             // Gruppe 2 (Intervalle im Fokus)
+           // {2, 4000},
+            {2, 1000},
+
+            //{2, 2000}, {4, 2000}, {8, 2000}, // Gruppe 1 (Quellen im Fokus)
+            //{4, 1000}, {4, 4000}             // Gruppe 2 (Intervalle im Fokus)
         };
 
         boolean[] antiPheromones = {true, false};
@@ -35,9 +38,13 @@ public class App {
                 for (int run = 1; run <= N; run++) {
                     final int currentRun = run;
                     executor.submit(() -> {
-                        // Wir übergeben baseDirName und currentRun an die Simulation
+                    try {
                         new Simulation(false, ap, foodCount, interval, baseDirName, currentRun);
-                    });
+                    } catch (Throwable t) { // Catch Throwable, not just Exception
+                        System.err.println("Simulation " + currentRun + " crashed!");
+                        t.printStackTrace();
+                    }
+                });
                 }
             }
         }
@@ -49,11 +56,24 @@ public class App {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-    
-        //Simulation sim = new Simulation(true, true, 4, 1000);
         
-       //Renderer visualizer = new Renderer(sim); // Pass the simulation to the renderer
-       //PApplet.runSketch(new String[]{"AntSimulation"}, visualizer);
+       // runVis();
+        
+    }
+
+    public static void runVis() {
+        int foodCount = 8;
+        int interval = 1000;
+        boolean antiPheromones = true;
+
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        String baseDirName = timestamp + "_" + foodCount + "_" + interval + "_" + antiPheromones;
+
+        Simulation sim = new Simulation(true, antiPheromones, foodCount, interval, baseDirName, 0);
+        
+        
+       Renderer visualizer = new Renderer(sim); // Pass the simulation to the renderer
+       PApplet.runSketch(new String[]{"AntSimulation"}, visualizer);
     }
 
 

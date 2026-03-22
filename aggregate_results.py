@@ -67,6 +67,7 @@ for config_folder in os.listdir(data_dir):
             if 'Run_ID' not in df_ps.columns:
                 df_ps['Run_ID'] = run_folder
             summary_dfs.append(df_ps)
+            
 
     # Meta-Throughput: Durchschnitt + Standardabweichung (ohne null-gefüllte Steps)
     if all_run_throughputs:
@@ -115,6 +116,15 @@ for config_folder in os.listdir(data_dir):
 
         ax1.set_xlabel('Simulations-Schritte', fontsize=12)
         ax1.set_ylabel('Durchsatz Summe', fontsize=12)
+
+        max_step = int(valid_tp.index.max())
+        tick_spacing = max(1000, (max_step // 10))
+        tick_spacing = (tick_spacing // 1000) * 1000
+        tick_spacing = max(1000, tick_spacing)
+        xticks = np.arange(0, max_step + tick_spacing, tick_spacing)
+        ax1.set_xticks(xticks)
+        ax1.set_xticklabels([str(int(x)) for x in xticks], rotation=0)
+
         ax1.legend(loc='upper left')
         ax1.grid(True, linestyle='--', alpha=0.5)
 
@@ -164,11 +174,29 @@ for config_folder in os.listdir(data_dir):
         plt.figure(figsize=(16, 6))
         ax2 = plt.gca()
         ax2.plot(step_agg.index, step_agg['avg_step_efficeny_to_food'], color='green', lw=2, label='Ø Effizienz zu Futterquellen')
+        ax2.fill_between(step_agg.index,
+                         (step_agg['avg_step_efficeny_to_food'] - step_std['avg_step_efficeny_to_food']).clip(lower=0),
+                         (step_agg['avg_step_efficeny_to_food'] + step_std['avg_step_efficeny_to_food']).clip(upper=1),
+                         color='green', alpha=0.1, label='± 1 SD Futter')
+
         ax2.plot(step_agg.index, step_agg['avg_step_efficeny_to_nest'], color='blue', lw=2, label='Ø Effizienz zurück zum Nest')
+        ax2.fill_between(step_agg.index,
+                         (step_agg['avg_step_efficeny_to_nest'] - step_std['avg_step_efficeny_to_nest']).clip(lower=0),
+                         (step_agg['avg_step_efficeny_to_nest'] + step_std['avg_step_efficeny_to_nest']).clip(upper=1),
+                         color='blue', alpha=0.1, label='± 1 SD Nest')
 
         ax2.set_ylim(0, 1.1) 
         ax2.set_ylabel('Pfadeffizienz', fontsize=12)
         ax2.set_xlabel('Simulations-Schritte', fontsize=12)
+
+        max_step = int(step_agg.index.max())
+        tick_spacing = max(1000, (max_step // 10))
+        tick_spacing = (tick_spacing // 1000) * 1000
+        tick_spacing = max(1000, tick_spacing)
+        xticks = np.arange(0, max_step + tick_spacing, tick_spacing)
+        ax2.set_xticks(xticks)
+        ax2.set_xticklabels([str(int(x)) for x in xticks], rotation=0)
+
         ax2.legend(loc='upper left')
         ax2.grid(True, alpha=0.3)
 
@@ -185,157 +213,121 @@ for config_folder in os.listdir(data_dir):
         plt.close()
         print(f" -> Meta-Global-Metrics Graph gespeichert: {out_global_plot}")
 
-    # 3. CSV: Durchschnittliche Performance-Metriken
+    # 3. CSV: Laufbasierte Meta-Performance (jedes Run ist ein sample)
     if summary_dfs:
         merged_summary = pd.concat(summary_dfs, ignore_index=True)
 
-        # Run_ID ist string, daher vor der numerischen Aggregation rausnehmen
-        merged_summary_numeric = merged_summary.drop(columns=['Run_ID'], errors='ignore')
-        agg_summary = merged_summary_numeric.groupby('Metric', as_index=False).mean()
+        # Run-Level-Metriken aggregieren (je Run als unabhängige Stichprobe)
+        perf_agg = merged_summary.groupby('Metric')['Mean'].agg(['mean', 'std', 'count']).reset_index()
 
-        out_csv = os.path.join(config_path, "aggregated_performance_summary.csv")
-        agg_summary.to_csv(out_csv, index=False)
-        print(f" -> Aggregiertes Performance-CSV gespeichert: {out_csv}")
+        out_perf_summary = os.path.join(config_path, 'meta_performance_summary.csv')
+        perf_agg.to_csv(out_perf_summary, index=False)
+        print(f" -> Meta-Performance Summary CSV gespeichert: {out_perf_summary}")
 
-    # 4. Meta Performance Boxplots (aus Rohdaten)
-    if all_source_metrics and all_global_metrics:
-        # Rohdaten sammeln für alle Metriken
-        all_convergence_steps = []
-        all_recovery_steps = []
-        all_efficiency_food = []
-        all_efficiency_nest = []
-        all_global_throughputs = []
-        all_jains = []
+        # Notched Boxplot mit Jitter Overlay
+        metrics_to_plot = [
+            'Convergence_Steps',
+            'Recovery_Steps',
+            'Global_Throughput',
+            'Efficiency_Food',
+            'Efficiency_Nest',
+            "Jains_Fairness_Index",
+        ]
+        labels = [
+            'Convergence Steps',
+            'Recovery Steps',
+            'Global Throughput',
+            'Efficiency Food',
+            'Efficiency Nest',
+            "Jain\'s Fairness",
+        ]
 
-        troughput_convergence = 1  # Wie im Original
+        data_series = []
+        for metric in metrics_to_plot:
+            d = merged_summary.loc[merged_summary['Metric'] == metric, 'Mean'].dropna().astype(float)
+            if d.empty:
+                d = pd.Series([np.nan])
+            data_series.append(d)
 
-        for i, df_sm in enumerate(all_source_metrics):
-            if df_sm.empty:
-                continue
+        fig3, axes = plt.subplots(2, 3, figsize=(18, 12))
+        ax_c, ax_r, ax_tp, ax_eff, ax_j, ax_empty = axes.flatten()
 
-            pivot_df = df_sm.pivot(index='step', columns='source_id', values='throughput').fillna(0)
-            source_ids = sorted(pivot_df.columns)
-            global_throughput = pivot_df.sum(axis=1)
+        # Convergence Steps (robuster mit Median)
+        conv_values = merged_summary.loc[merged_summary['Metric'] == 'Convergence_Steps', 'Mean'].dropna().astype(float)
+        ax_c.boxplot(conv_values, notch=True, patch_artist=True, boxprops=dict(facecolor='lightgreen', alpha=0.5))
+        ax_c.scatter(np.random.normal(1, 0.08, size=len(conv_values)), conv_values, color='darkgreen', alpha=0.7, s=30)
+        c_mean = np.nanmean(conv_values) if len(conv_values)>0 else np.nan
+        c_med = np.nanmedian(conv_values) if len(conv_values)>0 else np.nan
+        ax_c.set_title('Convergence Steps', fontsize=12)
+        ax_c.set_ylabel('Schritte', fontsize=10)
+        ax_c.text(0.05, 0.95, f'Mean: {c_mean:.1f}\nMedian: {c_med:.1f}', transform=ax_c.transAxes, color='red', va='top', fontsize=10)
+        if 'Convergence_Rate_Pct' in merged_summary['Metric'].values:
+            conv_rate_val = merged_summary.loc[merged_summary['Metric'] == 'Convergence_Rate_Pct', 'Mean'].dropna().astype(float)
+            if len(conv_rate_val) > 0:
+                ax_c.text(0.95, 0.95, f'Rate avg: {np.nanmean(conv_rate_val):.1f}%', transform=ax_c.transAxes, color='red', va='top', ha='right', fontsize=10)
+        ax_c.grid(axis='y', linestyle='--', alpha=0.3)
 
-            # Convergence (quasi 1. Schritt > threshold nach creation)
-            for sid in source_ids:
-                source_data = df_sm[df_sm['source_id'] == sid]
-                creation_step = source_data['creation_step'].max()
-                if creation_step == -1:
-                    continue
-                over_convergence = source_data[source_data['throughput'] > troughput_convergence]
-                if not over_convergence.empty:
-                    first_step_over_convergence = over_convergence['step'].min()
-                    steps_to_reach_convergence = first_step_over_convergence - creation_step
-                    if steps_to_reach_convergence >= 0:
-                        all_convergence_steps.append(steps_to_reach_convergence)
+        # Recovery Steps
+        rec_values = merged_summary.loc[merged_summary['Metric'] == 'Recovery_Steps', 'Mean'].dropna().astype(float)
+        ax_r.boxplot(rec_values, notch=True, patch_artist=True, boxprops=dict(facecolor='lightcoral', alpha=0.5))
+        ax_r.scatter(np.random.normal(1, 0.08, size=len(rec_values)), rec_values, color='darkviolet', alpha=0.7, s=30)
+        r_mean = np.nanmean(rec_values) if len(rec_values)>0 else np.nan
+        r_med = np.nanmedian(rec_values) if len(rec_values)>0 else np.nan
+        ax_r.set_title('Recovery Steps', fontsize=12)
+        ax_r.set_ylabel('Schritte', fontsize=10)
+        ax_r.text(0.05, 0.95, f'Mean: {r_mean:.1f}\nMedian: {r_med:.1f}', transform=ax_r.transAxes, color='darkviolet', va='top', fontsize=10)
+        if 'Recovery_Rate_Pct' in merged_summary['Metric'].values:
+            recovery_rate_val = merged_summary.loc[merged_summary['Metric'] == 'Recovery_Rate_Pct', 'Mean'].dropna().astype(float)
+            if len(recovery_rate_val) > 0:
+                ax_r.text(0.95, 0.95, f'Rate avg: {np.nanmean(recovery_rate_val):.1f}%', transform=ax_r.transAxes, color='darkviolet', va='top', ha='right', fontsize=10)
+        ax_r.grid(axis='y', linestyle='--', alpha=0.3)
 
-            # Recovery (nach dem Build-Graphs-Algorithmus)
-            puffer = 0.9
-            min_stable_steps = 100
-            steps_for_avg = 50
-            deletion_steps = df_sm[df_sm['deletion_step'] != -1]['deletion_step'].unique()
-            for d_step in deletion_steps:
-                pre_data = global_throughput[(global_throughput.index >= d_step - steps_for_avg) & (global_throughput.index < d_step)]
-                if pre_data.empty:
-                    continue
-                target_value = pre_data.mean() * puffer
+        # Global Throughput
+        tp_values = merged_summary.loc[merged_summary['Metric'] == 'Global_Throughput', 'Mean'].dropna().astype(float)
+        ax_tp.boxplot(tp_values, notch=True, patch_artist=True, boxprops=dict(facecolor='lightgray', alpha=0.5))
+        ax_tp.scatter(np.random.normal(1, 0.08, size=len(tp_values)), tp_values, color='gray', alpha=0.7, s=30)
+        ax_tp.set_title('Global Throughput', fontsize=12)
+        ax_tp.set_ylabel('Durchsatz', fontsize=10)
+        ax_tp.grid(axis='y', linestyle='--', alpha=0.3)
 
-                post_deletion = global_throughput[global_throughput.index > d_step]
-                dropped_data = post_deletion[post_deletion < target_value]
-                if dropped_data.empty:
-                    continue
-                first_drop_step = dropped_data.index.min()
+        # Pfadeffizienz als notched boxplot
+        eff_food = merged_summary.loc[merged_summary['Metric'] == 'Efficiency_Food', 'Mean'].dropna().astype(float)
+        eff_nest = merged_summary.loc[merged_summary['Metric'] == 'Efficiency_Nest', 'Mean'].dropna().astype(float)
+        if len(eff_food) > 0 or len(eff_nest) > 0:
+            eff_data = [eff_food if len(eff_food) > 0 else np.array([np.nan]), eff_nest if len(eff_nest) > 0 else np.array([np.nan])]
+            ax_eff.boxplot(eff_data, notch=True, patch_artist=True, labels=['Food', 'Nest'], boxprops=dict(alpha=0.5))
+            ax_eff.scatter(np.random.normal(1, 0.08, size=len(eff_food)), eff_food, color='green', alpha=0.7, s=30)
+            ax_eff.scatter(np.random.normal(2, 0.08, size=len(eff_nest)), eff_nest, color='blue', alpha=0.7, s=30)
+            ax_eff.set_title('Pfadeffizienz (Notched Boxplot)', fontsize=12)
+            ax_eff.set_ylabel('Effizienz', fontsize=10)
+            ax_eff.grid(axis='y', linestyle='--', alpha=0.3)
+        else:
+            ax_eff.text(0.5, 0.5, 'Keine Pfadeffizienz-Daten', ha='center', va='center')
+            ax_eff.axis('off')
 
-                actual_recovery_search = post_deletion[post_deletion.index > first_drop_step]
-                for step, value in actual_recovery_search.items():
-                    if value >= target_value:
-                        future = global_throughput[(global_throughput.index >= step) & (global_throughput.index <= step + min_stable_steps)]
-                        if not future.empty and future.min() >= target_value:
-                            recovery_step = step - d_step
-                            all_recovery_steps.append(recovery_step)
-                            break
+        # Jain's Fairness
+        jain_values = merged_summary.loc[merged_summary['Metric'] == 'Jains_Fairness_Index', 'Mean'].dropna().astype(float)
+        if len(jain_values) > 0:
+            ax_j.boxplot(jain_values, notch=True, patch_artist=True, boxprops=dict(facecolor='gold', alpha=0.5))
+            ax_j.scatter(np.random.normal(1, 0.08, size=len(jain_values)), jain_values, color='darkgoldenrod', alpha=0.7, s=30)
+            ax_j.set_title("Jain's Fairness Index", fontsize=12)
+            ax_j.set_ylabel('Fairness Index', fontsize=10)
+            ax_j.set_ylim(-0.05, 1.05)
+            ax_j.grid(axis='y', linestyle='--', alpha=0.3)
+        else:
+            ax_j.text(0.5, 0.5, 'Keine Jain-Daten', ha='center', va='center')
+            ax_j.axis('off')
 
-            # Global Throughput
-            global_tp = pivot_df.sum(axis=1)
-            all_global_throughputs.extend(global_tp.values)
-
-            # Jain's Fairness
-            sum_tp = pivot_df.sum(axis=1)
-            sum_sq_tp = (pivot_df ** 2).sum(axis=1)
-            active_counts = (pivot_df > 0).sum(axis=1).replace(0, np.nan)
-            denominator = (active_counts * sum_sq_tp).replace(0, np.nan)
-            jains_index = (sum_tp ** 2) / denominator
-            jains_index = jains_index.clip(upper=1).fillna(0)
-            if not jains_index.empty:
-                all_jains.extend(jains_index.dropna().values)
-
-        # Efficiency aus global_metrics
-        for df_gm in all_global_metrics:
-            all_efficiency_food.extend(df_gm['avg_step_efficeny_to_food'].dropna().values)
-            all_efficiency_nest.extend(df_gm['avg_step_efficeny_to_nest'].dropna().values)
-
-        # Raten aus aggregierten Daten
-        merged_summary = pd.concat(summary_dfs, ignore_index=True)
-        conv_rate = merged_summary[merged_summary['Metric'] == 'Convergence_Rate_Pct']['Mean'].mean() if 'Convergence_Rate_Pct' in merged_summary['Metric'].values else 0
-        rec_rate = merged_summary[merged_summary['Metric'] == 'Recovery_Rate_Pct']['Mean'].mean() if 'Recovery_Rate_Pct' in merged_summary['Metric'].values else 0
-
-        fig3, (ax_box1, ax_box_rec, ax_box2, ax_box3, ax_box_jain) = plt.subplots(1, 5, figsize=(22, 6))
-
-        # --- 1. Convergence Steps ---
-        if all_convergence_steps:
-            x_coords = np.random.normal(1, 0.04, size=len(all_convergence_steps))
-            ax_box1.scatter(x_coords, all_convergence_steps, alpha=0.7, edgecolors='black', color='lightblue', s=70, marker='^')
-            ax_box1.hlines(np.median(all_convergence_steps), 0.8, 1.2, colors='black', linestyles='--', lw=2)
-            ax_box1.set_title('Zeit bis Convergence', fontsize=10)
-            ax_box1.set_ylabel('Schritte', fontsize=10)
-            ax_box1.set_xticks([1])
-            ax_box1.set_xticklabels([f"Ø Rate: {conv_rate:.1f}%"])
-            ax_box1.grid(axis='y', linestyle='--', alpha=0.3)
-
-        # --- 2. Recovery Steps ---
-        if all_recovery_steps:
-            x_coords = np.random.normal(1, 0.04, size=len(all_recovery_steps))
-            ax_box_rec.scatter(x_coords, all_recovery_steps, alpha=0.7, edgecolors='black', color='lightcoral', s=70, marker='v')
-            ax_box_rec.hlines(np.median(all_recovery_steps), 0.8, 1.2, colors='black', linestyles='--', lw=2)
-            ax_box_rec.set_title('Erholungszeit', fontsize=10)
-            ax_box_rec.set_ylabel('Schritte nach Einbruch', fontsize=10)
-            ax_box_rec.set_xticks([1])
-            ax_box_rec.set_xticklabels([f"Ø Rate: {rec_rate:.1f}%"])
-
-        # --- 3. Efficiency ---
-        if all_efficiency_food and all_efficiency_nest:
-            bp2 = ax_box2.boxplot([all_efficiency_food, all_efficiency_nest], patch_artist=True, tick_labels=['Futter', 'Nest'], widths=0.4)
-            for patch, color in zip(bp2['boxes'], ['green', 'blue']):
-                patch.set(facecolor=color, alpha=0.5)
-            ax_box2.set_title('Ø Pfadeffizienz', fontsize=10)
-            ax_box2.set_ylim(-0.05, 1.05)
-            ax_box2.grid(axis='y', linestyle='--', alpha=0.3)
-
-        # --- 4. Global Throughput ---
-        if all_global_throughputs:
-            bp4 = ax_box3.boxplot(all_global_throughputs, patch_artist=True, widths=0.4)
-            for box in bp4['boxes']:
-                box.set(facecolor='gray', alpha=0.5)
-            ax_box3.set_title('Ø Gesamt-Durchsatz', fontsize=10)
-            ax_box3.set_xticklabels([''])
-
-        # --- 5. Jain's Fairness ---
-        if all_jains:
-            bp5 = ax_box_jain.boxplot(all_jains, patch_artist=True, widths=0.4)
-            for box in bp5['boxes']:
-                box.set(facecolor='gold', alpha=0.5)
-            ax_box_jain.set_title("Jain's Fairness Index", fontsize=10)
-            ax_box_jain.set_ylim(-0.05, 1.05)
-            ax_box_jain.set_xticklabels([''])
+        ax_empty.axis('off')
+        ax_empty.text(0.5, 0.5, 'Meta Performance\n(Ergänzende Stats)', ha='center', va='center', fontsize=12)
 
         fig3.tight_layout()
-        plt.subplots_adjust(wspace=0.4, bottom=0.2)
-        out_perf_box = os.path.join(config_path, "06_meta_performance_boxplots.png")
+        out_perf_box = os.path.join(config_path, '06_meta_performance_boxplots.png')
         fig3.savefig(out_perf_box, bbox_inches='tight', dpi=150)
         plt.close(fig3)
-        print(f" -> Meta-Performance-Boxplot gespeichert: {out_perf_box}")
+        print(f" -> Meta-Performance Boxplot gespeichert: {out_perf_box}")
 
 print("\n" + "="*60)
 print(" ALLE BATCHES ERFOLGREICH AGGREGIERT")
 print("="*60)
+

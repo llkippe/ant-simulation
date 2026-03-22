@@ -232,8 +232,8 @@ plt.close(fig1)
 # ==========================================
 fig2, ax2 = plt.subplots(figsize=(16, 6))
 
-ax2.plot(df_global['step'], df_global['avg_step_efficeny_to_food'], color='green', label='Pfadeffizienz zu Futterquellen', lw=2.5)
-ax2.plot(df_global['step'], df_global['avg_step_efficeny_to_nest'], color='blue', label='Pfadeffizienz zurück zum Nest', lw=2.5)
+ax2.plot(df_global['step'], df_global['avg_step_efficeny_to_food'], color='green', label='Pfadeffizienz zu Futterquellen', lw=2)
+ax2.plot(df_global['step'], df_global['avg_step_efficeny_to_nest'], color='blue', label='Pfadeffizienz zurück zum Nest', lw=2)
 
 ax2.set_ylim(0, 1.1) 
 ax2.set_ylabel('Pfadeffizienz', fontsize=12)
@@ -301,11 +301,11 @@ if convergence_data_pairs:
                       color=point_colors, s=70, marker='^')
     ax_box1.hlines(np.median(point_steps), 0.8, 1.2, colors='black', linestyles='--', lw=2)
 
-ax_box1.set_title('Zeit bis Convergence', fontsize=10)
+ax_box1.set_title(f'Zeit bis Durchsatz > {troughput_convergence} erreicht', fontsize=10)
 ax_box1.set_ylabel('Schritte', fontsize=10)
 ax_box1.set_xticks([1])
 # Rotes Label für Convergence-Fehler
-lbl_conv = ax_box1.set_xticklabels([f"Nicht konvergiert:\n{failed_conv} ({100-conv_rate:.1f}%)"])
+lbl_conv = ax_box1.set_xticklabels([f"Durchsatz nicht erreicht:\n{failed_conv}mal ({100-conv_rate:.1f}%)"])
 plt.setp(lbl_conv, color='red', fontweight='bold', fontsize=9)
 ax_box1.grid(axis='y', linestyle='--', alpha=0.3)
 
