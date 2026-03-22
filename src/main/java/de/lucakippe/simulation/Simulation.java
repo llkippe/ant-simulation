@@ -58,21 +58,20 @@ public class Simulation {
 
         this.isRendered = isRendered;
         if(!isRendered ) {
-            update();
+            while(stepCount < maxStepCount) {
+                update();
+            }
+            PythonScriptRunner.runPythonScript(metricsManager.getSimulationDataDir().toString());
+            System.out.println("Simulation Finished");    
         }
-
+        // simulation finished
+        
+        return;
     }
 
 
     public void update() {
         stepCount++;
-        if(stepCount > maxStepCount) return;
-        if(stepCount == maxStepCount) {
-            PythonScriptRunner.runPythonScript(metricsManager.getSimulationDataDir().toString());
-            System.out.println("Simulation Finished");
-            return;
-        }
-
 
         ants.update();
         pheromones.update();
@@ -82,11 +81,6 @@ public class Simulation {
         }
 
         metricsManager.update(stepCount, nest);
-
-
-        if(!isRendered) {
-            update();
-        }
     }
 
     public void replaceOldestFoodSource() {
