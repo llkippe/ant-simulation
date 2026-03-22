@@ -9,16 +9,16 @@ import java.util.concurrent.TimeUnit;
 public class App {
     public static void main(String[] args) {
         // Definition der Batch-Größe
-        int N = 2; 
+        int N = 10; 
 
         // Deine gewünschten Konfigurationen: {FoodSources, SpawnInterval}
         // (4 Quellen / 2000 Intervall überschneidet sich in deinen Gruppen, 
         //  daher schreiben wir es hier nur einmal auf, um Redundanz zu sparen)
         int[][] configs = {
-            {2,1000}            
+            //{2,1000}            
 
-            // {2, 2000}, {4, 2000}, {8, 2000}, // Gruppe 1 (Quellen im Fokus)
-            // {4, 1000}, {4, 4000}             // Gruppe 2 (Intervalle im Fokus)
+            {2, 2000}, {4, 2000}, {8, 2000}, // Gruppe 1 (Quellen im Fokus)
+            {4, 1000}, {4, 4000}             // Gruppe 2 (Intervalle im Fokus)
         };
 
         boolean[] antiPheromones = {true, false};
@@ -51,7 +51,7 @@ public class App {
                 executor.shutdown();
         try {
             // Wait for all tasks to finish (timeout after 1 hour)
-            executor.awaitTermination(1, TimeUnit.HOURS);
+            executor.awaitTermination(2, TimeUnit.HOURS);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }

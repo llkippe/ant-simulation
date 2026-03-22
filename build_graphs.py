@@ -184,7 +184,7 @@ ax1_twin = ax1.twinx()
 
 # Plotting the line
 line_twin = ax1_twin.plot(df_global['step'], ee_ratio, color='black', 
-                          linewidth=2, linestyle=':', label='Exploitation Rate (0-1)')
+                          linewidth=2, linestyle=':', label='Ausbeutungsrate')
 
 # ax1 current range: [lowest_y, 5] (based on your earlier code)
 throughput_min, throughput_max = ax1.get_ylim()
@@ -198,7 +198,7 @@ twin_min = (throughput_min / throughput_max) * twin_max
 ax1_twin.set_ylim(twin_min, twin_max)
 
 # 5. Styling
-ax1_twin.set_ylabel('Exploitation Ratio (Normalized)', color='black', fontsize=12)
+ax1_twin.set_ylabel('Ausbeutungsrate (Normalisiert)', color='black', fontsize=12)
 ax1_twin.tick_params(axis='y', labelcolor='black')
 
 # Update Legend to include the new line
@@ -284,7 +284,7 @@ jains_index = jains_index.fillna(0)
 # ==========================================
 # GRAPH 3: BOXPLOTS (Time to Throughput & Efficiency)
 # ==========================================
-fig3, (ax_box1, ax_box_rec, ax_box2, ax_box3, ax_box_jain) = plt.subplots(1, 5, figsize=(22, 6))
+fig3, (ax_box1, ax_box_rec, ax_box3, ax_box2 , ax_box_jain) = plt.subplots(1, 5, figsize=(22, 6))
 
 # --- 1. Schritte bis Durchsatz-Ziel (Convergence) ---
 total_sources = len(source_ids)
@@ -301,11 +301,11 @@ if convergence_data_pairs:
                       color=point_colors, s=70, marker='^')
     ax_box1.hlines(np.median(point_steps), 0.8, 1.2, colors='black', linestyles='--', lw=2)
 
-ax_box1.set_title(f'Zeit bis Durchsatz > {troughput_convergence} erreicht', fontsize=10)
-ax_box1.set_ylabel('Schritte', fontsize=10)
+ax_box1.set_title(f'Schritte bis Durchsatz > {troughput_convergence} erreicht', fontsize=10)
+ax_box1.set_ylabel('Schritte nach Erstellung', fontsize=10)
 ax_box1.set_xticks([1])
 # Rotes Label für Convergence-Fehler
-lbl_conv = ax_box1.set_xticklabels([f"Durchsatz nicht erreicht:\n{failed_conv}mal ({100-conv_rate:.1f}%)"])
+lbl_conv = ax_box1.set_xticklabels([f"Durchsatz nicht erreicht:\n{failed_conv} mal ({100-conv_rate:.1f}%)"])
 plt.setp(lbl_conv, color='red', fontweight='bold', fontsize=9)
 ax_box1.grid(axis='y', linestyle='--', alpha=0.3)
 
@@ -325,7 +325,7 @@ if total_deletions > 0:
     ax_box_rec.set_ylabel('Schritte nach Einbruch', fontsize=10)
     ax_box_rec.set_xticks([1])
     # Rotes Label für Recovery-Fehler
-    lbl_rec = ax_box_rec.set_xticklabels([f"Nicht regeneriert:\n{failed_rec} ({100-rec_rate:.1f}%)"])
+    lbl_rec = ax_box_rec.set_xticklabels([f"Nicht regeneriert:\n{failed_rec} mal ({100-rec_rate:.1f}%)"])
     plt.setp(lbl_rec, color='red', fontweight='bold', fontsize=9)
 
 # --- 3. Pfadeffizienz (unverändert) ---

@@ -139,8 +139,8 @@ for config_folder in os.listdir(data_dir):
         if all_ee_ratios:
             ax2 = ax1.twinx()
             valid_ee = mean_ee.dropna()
-            ax2.plot(valid_ee.index, valid_ee.values, color='black', linewidth=2, linestyle=':', label='Exploitation Rate (0-1)')
-            ax2.set_ylabel('Exploitation Ratio (Normalized)', color='black', fontsize=12)
+            ax2.plot(valid_ee.index, valid_ee.values, color='black', linewidth=2, linestyle=':', label='Ausbeutungsrate (Normalisiert)')
+            ax2.set_ylabel('Ausbeutungsrate', color='black', fontsize=12)
             ax2.tick_params(axis='y', labelcolor='black')
             ax2.set_ylim(0, 1.0)
 
@@ -149,7 +149,7 @@ for config_folder in os.listdir(data_dir):
             lines2, labels2 = ax2.get_legend_handles_labels()
             ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
 
-        plt.title(f'Meta-Analyse: Gesamtdurchsatz über {count_tp.max():.0f}/{len(run_folders)} Läufe\n({config_folder})', fontsize=14)
+        plt.title(f'Gesamtdurchsatz über {count_tp.max():.0f} Läufe\n({config_folder})', fontsize=14)
         out_tp_plot = os.path.join(config_path, "04_meta_throughput.png")
         plt.savefig(out_tp_plot, bbox_inches='tight', dpi=150)
         plt.close()
@@ -214,7 +214,7 @@ for config_folder in os.listdir(data_dir):
         ax3.set_ylabel('Enttäuschungsrate', color='red', fontsize=12)
         ax3.tick_params(axis='y', labelcolor='red')
 
-        plt.title(f'Meta-Global-Metrics über {len(all_global_metrics)} Läufe\n({config_folder})', fontsize=14)
+        plt.title(f'Pfadeffizienz und Enttäuschungsrate über {len(all_global_metrics)} Läufe\n({config_folder})', fontsize=14)
         out_global_plot = os.path.join(config_path, "05_meta_global_metrics.png")
         plt.savefig(out_global_plot, bbox_inches='tight', dpi=150)
         plt.close()
@@ -256,45 +256,49 @@ for config_folder in os.listdir(data_dir):
                 d = pd.Series([np.nan])
             data_series.append(d)
 
-        fig3, axes = plt.subplots(2, 3, figsize=(18, 12))
-        ax_c, ax_r, ax_tp, ax_eff, ax_j, ax_empty = axes.flatten()
+        fig3, axes = plt.subplots(1, 5, figsize=(22, 6))
+        ax_c, ax_r, ax_tp, ax_eff, ax_j = axes.flatten()
 
         # Convergence Steps (robuster mit Median)
-        conv_values = merged_summary.loc[merged_summary['Metric'] == 'Convergence_Steps', 'Mean'].dropna().astype(float)
-        ax_c.boxplot(conv_values, notch=True, patch_artist=True, boxprops=dict(facecolor='lightgreen', alpha=0.5))
-        ax_c.scatter(np.random.normal(1, 0.08, size=len(conv_values)), conv_values, color='darkgreen', alpha=0.7, s=30)
+        conv_values = merged_summary.loc[merged_summary['Metric'] == 'Convergence_Steps', 'Median'].dropna().astype(float)
+        ax_c.boxplot(conv_values, notch=True, patch_artist=True, boxprops=dict(facecolor='orange', alpha=0.5))
+        ax_c.scatter(np.random.normal(1, 0.08, size=len(conv_values)), conv_values, color='orange', alpha=0.9, s=30)
         c_mean = np.nanmean(conv_values) if len(conv_values)>0 else np.nan
         c_med = np.nanmedian(conv_values) if len(conv_values)>0 else np.nan
-        ax_c.set_title('Convergence Steps', fontsize=12)
-        ax_c.set_ylabel('Schritte', fontsize=10)
-        ax_c.text(0.05, 0.95, f'Mean: {c_mean:.1f}\nMedian: {c_med:.1f}', transform=ax_c.transAxes, color='red', va='top', fontsize=10)
+        ax_c.set_title('Schritte bis Durchsatz > 1 erreicht (Median)', fontsize=12)
+        ax_c.set_ylabel('Schritte nach Erstellung', fontsize=10)
+
         if 'Convergence_Rate_Pct' in merged_summary['Metric'].values:
             conv_rate_val = merged_summary.loc[merged_summary['Metric'] == 'Convergence_Rate_Pct', 'Mean'].dropna().astype(float)
             if len(conv_rate_val) > 0:
-                ax_c.text(0.95, 0.95, f'Rate avg: {np.nanmean(conv_rate_val):.1f}%', transform=ax_c.transAxes, color='red', va='top', ha='right', fontsize=10)
+                x_ax_lbl = ax_c.set_xticklabels([f'Erfolgsrate: {np.nanmean(conv_rate_val):.1f}%'])
+                plt.setp(x_ax_lbl, color='red', fontweight='bold', fontsize=11)
         ax_c.grid(axis='y', linestyle='--', alpha=0.3)
 
         # Recovery Steps
-        rec_values = merged_summary.loc[merged_summary['Metric'] == 'Recovery_Steps', 'Mean'].dropna().astype(float)
-        ax_r.boxplot(rec_values, notch=True, patch_artist=True, boxprops=dict(facecolor='lightcoral', alpha=0.5))
-        ax_r.scatter(np.random.normal(1, 0.08, size=len(rec_values)), rec_values, color='darkviolet', alpha=0.7, s=30)
+        rec_values = merged_summary.loc[merged_summary['Metric'] == 'Recovery_Steps', 'Median'].dropna().astype(float)
+        ax_r.boxplot(rec_values, notch=True, patch_artist=True, boxprops=dict(facecolor='darkviolet', alpha=0.5))
+        ax_r.scatter(np.random.normal(1, 0.08, size=len(rec_values)), rec_values, color='darkviolet', alpha=0.9, s=30)
         r_mean = np.nanmean(rec_values) if len(rec_values)>0 else np.nan
         r_med = np.nanmedian(rec_values) if len(rec_values)>0 else np.nan
-        ax_r.set_title('Recovery Steps', fontsize=12)
+        ax_r.set_title('Erholungszeit (Median)', fontsize=12)
         ax_r.set_ylabel('Schritte', fontsize=10)
-        ax_r.text(0.05, 0.95, f'Mean: {r_mean:.1f}\nMedian: {r_med:.1f}', transform=ax_r.transAxes, color='darkviolet', va='top', fontsize=10)
+       
         if 'Recovery_Rate_Pct' in merged_summary['Metric'].values:
             recovery_rate_val = merged_summary.loc[merged_summary['Metric'] == 'Recovery_Rate_Pct', 'Mean'].dropna().astype(float)
             if len(recovery_rate_val) > 0:
-                ax_r.text(0.95, 0.95, f'Rate avg: {np.nanmean(recovery_rate_val):.1f}%', transform=ax_r.transAxes, color='darkviolet', va='top', ha='right', fontsize=10)
+                x_ax_lbl = ax_r.set_xticklabels([f'Erholungsrate: {np.nanmean(recovery_rate_val):.1f}%'])
+                plt.setp(x_ax_lbl, color='red', fontweight='bold', fontsize=11)
         ax_r.grid(axis='y', linestyle='--', alpha=0.3)
 
         # Global Throughput
         tp_values = merged_summary.loc[merged_summary['Metric'] == 'Global_Throughput', 'Mean'].dropna().astype(float)
-        ax_tp.boxplot(tp_values, notch=True, patch_artist=True, boxprops=dict(facecolor='lightgray', alpha=0.5))
-        ax_tp.scatter(np.random.normal(1, 0.08, size=len(tp_values)), tp_values, color='gray', alpha=0.7, s=30)
-        ax_tp.set_title('Global Throughput', fontsize=12)
-        ax_tp.set_ylabel('Durchsatz', fontsize=10)
+        ax_tp.boxplot(tp_values, notch=True, patch_artist=True, boxprops=dict(facecolor='gray', alpha = 0.5))
+        ax_tp.scatter(np.random.normal(1, 0.08, size=len(tp_values)), tp_values, color='gray', alpha=0.9, s=30)
+        ax_tp.set_title('Ø Gesamt-Durchsatz', fontsize=12)
+        ax_tp.set_xticklabels([])
+
+        
         ax_tp.grid(axis='y', linestyle='--', alpha=0.3)
 
         # Pfadeffizienz als notched boxplot
@@ -302,11 +306,13 @@ for config_folder in os.listdir(data_dir):
         eff_nest = merged_summary.loc[merged_summary['Metric'] == 'Efficiency_Nest', 'Mean'].dropna().astype(float)
         if len(eff_food) > 0 or len(eff_nest) > 0:
             eff_data = [eff_food if len(eff_food) > 0 else np.array([np.nan]), eff_nest if len(eff_nest) > 0 else np.array([np.nan])]
-            ax_eff.boxplot(eff_data, notch=True, patch_artist=True, tick_labels=['Food', 'Nest'], boxprops=dict(alpha=0.5))
+            ax_eff_box = ax_eff.boxplot(eff_data, notch=True, patch_artist=True, tick_labels=['Futter', 'Nest'], boxprops=dict(alpha=0.5))
+            for patch, color in zip(ax_eff_box['boxes'], ['green', 'blue']):
+                patch.set(facecolor=color, alpha=0.5)
             ax_eff.scatter(np.random.normal(1, 0.08, size=len(eff_food)), eff_food, color='green', alpha=0.7, s=30)
             ax_eff.scatter(np.random.normal(2, 0.08, size=len(eff_nest)), eff_nest, color='blue', alpha=0.7, s=30)
-            ax_eff.set_title('Pfadeffizienz (Notched Boxplot)', fontsize=12)
-            ax_eff.set_ylabel('Effizienz', fontsize=10)
+            ax_eff.set_title('Ø Pfadeffizienz', fontsize=12)
+
             ax_eff.grid(axis='y', linestyle='--', alpha=0.3)
         else:
             ax_eff.text(0.5, 0.5, 'Keine Pfadeffizienz-Daten', ha='center', va='center')
@@ -318,16 +324,14 @@ for config_folder in os.listdir(data_dir):
             ax_j.boxplot(jain_values, notch=True, patch_artist=True, boxprops=dict(facecolor='gold', alpha=0.5))
             ax_j.scatter(np.random.normal(1, 0.08, size=len(jain_values)), jain_values, color='darkgoldenrod', alpha=0.7, s=30)
             ax_j.set_title("Jain's Fairness Index", fontsize=12)
-            ax_j.set_ylabel('Fairness Index', fontsize=10)
+            ax_j.set_xticklabels([])
             ax_j.set_ylim(-0.05, 1.05)
             ax_j.grid(axis='y', linestyle='--', alpha=0.3)
         else:
             ax_j.text(0.5, 0.5, 'Keine Jain-Daten', ha='center', va='center')
             ax_j.axis('off')
 
-        ax_empty.axis('off')
-        ax_empty.text(0.5, 0.5, 'Meta Performance\n(Ergänzende Stats)', ha='center', va='center', fontsize=12)
-
+        
         fig3.tight_layout()
         out_perf_box = os.path.join(config_path, '06_meta_performance_boxplots.png')
         fig3.savefig(out_perf_box, bbox_inches='tight', dpi=150)
