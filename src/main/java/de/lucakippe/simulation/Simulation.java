@@ -3,8 +3,8 @@ package de.lucakippe.simulation;
 
 
 public class Simulation {
-    public final static int WIDTH = 600;
-    public final static int HEIGHT = 600;
+    public final static int WIDTH = 650;
+    public final static int HEIGHT = 650;
     final static int NUM_ANTS = 2500;
     final static double PERCENT_SCOUT_ANTS = 0.1; 
 
@@ -17,13 +17,13 @@ public class Simulation {
     private Nest nest;
 
 
-    private static final int MIN_DIST_TO_NEST = 200;
-    private static final int MIN_DIST_BETWEEN_FOODSOURCES = 150;
+    public static final int MIN_DIST_TO_NEST = 120;
+    public static final int MIN_DIST_BETWEEN_FOODSOURCES = 100;
     private static int foodSourceSize = 13;
     public int foodSourceCount;
     public int foodSpawnIntervall;
     private Food[] foodSources;
-    private int nextFoodSourceId = 0;
+    private int nextFoodSourceId;
 
     MetricsManager metricsManager;
     
@@ -40,12 +40,15 @@ public class Simulation {
         // Wir nehmen entweder (Anzahl Quellen * 1.5) oder mindestens 6
         int eventCount = Math.max(minEvents, (int)(simFoodSources * 1.5));
         maxStepCount = newFoodSpawnIntervall * eventCount;
+
+        nextFoodSourceId = 0;
         
         
         
-        nest = new Nest(300, 300, 35);
+        nest = new Nest(WIDTH / 2, HEIGHT / 2, 35);
         foodSources = new Food[foodSourceCount];
         metricsManager = new MetricsManager(nest, foodSources, foodSpawnIntervall, foodSourceCount, antiPheromoneActive, NUM_ANTS, baseDirName, runIndex);
+      
         
         for (int i = 0; i < foodSources.length; i++) {
             foodSources[i] = createRandomFoodSource();
@@ -118,7 +121,7 @@ public class Simulation {
 
 
     private Food createRandomFoodSource() {
-        int maxTries = 50;
+        int maxTries = 1000;
 
         for (int t = 0; t < maxTries; t++) {
 
@@ -126,7 +129,6 @@ public class Simulation {
             int posY = (int) (Math.random() * HEIGHT);
 
             
-
             // check nest distance
             if (distWrapped(posX, posY, nest.posX, nest.posY)
                     < MIN_DIST_TO_NEST) {
@@ -155,15 +157,18 @@ public class Simulation {
             return newFood;
         }
 
+
         // fallback if map is crowded
         Food newFood =  new Food(
-            (int)(Math.random() * WIDTH),
-            (int)(Math.random() * HEIGHT),
+            nest.getPosX() - MIN_DIST_TO_NEST,
+            nest.getPosY() - MIN_DIST_TO_NEST ,
             foodSourceSize,
             stepCount,
             nextFoodSourceId
-        
         );
+
+        System.out.println("WARNING. No Food spot found");
+
         nextFoodSourceId++;
         return newFood;
     }

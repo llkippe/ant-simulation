@@ -15,11 +15,10 @@ public class App {
         // (4 Quellen / 2000 Intervall überschneidet sich in deinen Gruppen, 
         //  daher schreiben wir es hier nur einmal auf, um Redundanz zu sparen)
         int[][] configs = {
-           // {2, 4000},
-            {2, 1000},
+            {2,1000}            
 
-            //{2, 2000}, {4, 2000}, {8, 2000}, // Gruppe 1 (Quellen im Fokus)
-            //{4, 1000}, {4, 4000}             // Gruppe 2 (Intervalle im Fokus)
+            // {2, 2000}, {4, 2000}, {8, 2000}, // Gruppe 1 (Quellen im Fokus)
+            // {4, 1000}, {4, 4000}             // Gruppe 2 (Intervalle im Fokus)
         };
 
         boolean[] antiPheromones = {true, false};
@@ -57,7 +56,7 @@ public class App {
             e.printStackTrace();
         }
         
-       // runVis();
+     //  runVis();
         
     }
 

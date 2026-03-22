@@ -363,14 +363,6 @@ plt.close(fig3)
 
 
 # ==========================================
-# 4. Finish
-# ==========================================
-print("Graphs successfully split and saved to:")
-print(f"1: {out_source_png}")
-print(f"2: {out_global_png}")
-print(f"3: {out_boxplots_png}")
-
-# ==========================================
 # 5. Save Extended Numerical Metrics to File
 # ==========================================
 out_metrics_csv = os.path.join(base_dir, "performance_summary.csv")
@@ -416,10 +408,3 @@ df_summary.loc[len(df_summary)] = ["Recovery_Rate_Pct", rec_rate, np.nan, np.nan
 df_summary.insert(0, "Run_ID", run_id)
 df_summary.to_csv(out_metrics_csv, index=False)
 
-
-print("\n" + "="*80)
-print(f" PERFORMANCE SUMMARY - RUN: {run_id}")
-print("="*80)
-print(df_summary.drop(columns=["Run_ID"]).to_string(index=False, justify='center', float_format=lambda x: f"{x:8.2f}"))
-print("="*80)
-print(f"Datei gespeichert: {out_metrics_csv}\n")

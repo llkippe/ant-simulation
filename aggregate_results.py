@@ -37,21 +37,28 @@ for config_folder in os.listdir(data_dir):
         # -- Durchsatz pro Zeitschritt berechnen (source_metrics.csv) --
         source_metrics_path = os.path.join(run_path, "source_metrics.csv")
         if os.path.exists(source_metrics_path):
-            df_sm = pd.read_csv(source_metrics_path)
-            troughput_per_step = df_sm.groupby('step')['throughput'].sum()
-            troughput_per_step.name = run_folder
-            all_run_throughputs.append(troughput_per_step)
-            all_source_metrics.append(df_sm)  # Rohdaten speichern
+            try:
+                df_sm = pd.read_csv(source_metrics_path)
+                if not df_sm.empty:
+                    troughput_per_step = df_sm.groupby('step')['throughput'].sum()
+                    troughput_per_step.name = run_folder
+                    all_run_throughputs.append(troughput_per_step)
+                    all_source_metrics.append(df_sm)  # Rohdaten speichern
+            except pd.errors.EmptyDataError:
+                pass  # Skip empty files
 
         # -- Global-Metriken pro Schritt sammeln (global_metrics.csv) --
         global_metrics_path = os.path.join(run_path, "global_metrics.csv")
         if os.path.exists(global_metrics_path):
-            df_gm = pd.read_csv(global_metrics_path)
-            if not df_gm.empty:
-                expected_cols = ['step', 'avg_step_efficeny_to_food', 'avg_step_efficeny_to_nest', 'dissapointmentRate', 'exploitingAntsCount']
-                missing = [c for c in expected_cols if c not in df_gm.columns]
-                if not missing:
-                    all_global_metrics.append(df_gm[expected_cols])
+            try:
+                df_gm = pd.read_csv(global_metrics_path)
+                if not df_gm.empty:
+                    expected_cols = ['step', 'avg_step_efficeny_to_food', 'avg_step_efficeny_to_nest', 'dissapointmentRate', 'exploitingAntsCount']
+                    missing = [c for c in expected_cols if c not in df_gm.columns]
+                    if not missing:
+                        all_global_metrics.append(df_gm[expected_cols])
+            except pd.errors.EmptyDataError:
+                pass  # Skip empty files
 
         # -- Settings für Exploitation Rate --
         settings_path = os.path.join(run_path, "settings.csv")
@@ -295,7 +302,7 @@ for config_folder in os.listdir(data_dir):
         eff_nest = merged_summary.loc[merged_summary['Metric'] == 'Efficiency_Nest', 'Mean'].dropna().astype(float)
         if len(eff_food) > 0 or len(eff_nest) > 0:
             eff_data = [eff_food if len(eff_food) > 0 else np.array([np.nan]), eff_nest if len(eff_nest) > 0 else np.array([np.nan])]
-            ax_eff.boxplot(eff_data, notch=True, patch_artist=True, labels=['Food', 'Nest'], boxprops=dict(alpha=0.5))
+            ax_eff.boxplot(eff_data, notch=True, patch_artist=True, tick_labels=['Food', 'Nest'], boxprops=dict(alpha=0.5))
             ax_eff.scatter(np.random.normal(1, 0.08, size=len(eff_food)), eff_food, color='green', alpha=0.7, s=30)
             ax_eff.scatter(np.random.normal(2, 0.08, size=len(eff_nest)), eff_nest, color='blue', alpha=0.7, s=30)
             ax_eff.set_title('Pfadeffizienz (Notched Boxplot)', fontsize=12)

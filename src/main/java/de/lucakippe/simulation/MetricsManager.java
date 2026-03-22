@@ -66,6 +66,10 @@ public class MetricsManager {
             settingsWriter.println(foodSpawnIntervall + "," + foodSourceCount + "," + antiPheromoneActive + "," + totalAnts);
             settingsWriter.flush();
 
+            sourceThroughputWindows.clear();
+            lastFoodCountPerSource.clear();
+            sourceCreationSteps.clear();
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -78,6 +82,8 @@ public class MetricsManager {
         dissappointmentsInCurrentInterval = 0;
 
         HashMap<Integer, Integer> currentData = nest.getFoodPerSourceMap();
+
+
         for(Integer sourceId : currentData.keySet()) {
             int currentAmount = currentData.get(sourceId);
             int lastAmount = lastFoodCountPerSource.getOrDefault(sourceId, 0);
@@ -91,6 +97,8 @@ public class MetricsManager {
                 sourceId, k -> new SlidingWindow(WINDOW_SIZE)
             );
             window.tick(throughputInInterval);
+
+          
             
         }
         
@@ -154,6 +162,7 @@ public class MetricsManager {
     }
     
 
+    
 
     public void reportSourceCreated(int sourceId, int currentStep) {
         sourceCreationSteps.put(sourceId, currentStep);
