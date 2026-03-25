@@ -120,7 +120,14 @@ public class Ants {
                 metricsManager.reportExploitationEnd(); // when dissapointed it already counts as exploring from this moment on
             }
 
-            directions[index] += Math.PI; // turn around
+            //directions[index] += Math.PI; // turn around
+            // Teleport to center and pick a random unbiased direction to treat nest as coordiantion hub, unbiased sampling of env
+            posX[index] = nest.getPosX();
+            posY[index] = nest.getPosY();
+            directions[index] = Math.random() * 2.0 * Math.PI;
+
+
+
             states[index] = AntState.SEARCHING_FOR_FOOD;
             currentPheromoneDepositAmount[index] = maxPheromoneDepositAmount;
             stepsSinceLastTarget[index] = 0;
@@ -239,6 +246,30 @@ public class Ants {
             }
         }
         return sum / 9.0;
+    }
+
+    private void performOmniDirectionalSensing(int index) {
+        double bestIntensity = -1;
+        double bestAngle = directions[index];
+        int numSamples = 12; // Sample directions in 30-degree increments
+
+        for (int i = 0; i < numSamples; i++) {
+            double angle = (i * 2.0 * Math.PI) / numSamples;
+            double sensorX = posX[index] + Math.cos(angle) * sensorDistance;
+            double sensorY = posY[index] + Math.sin(angle) * sensorDistance;
+
+            // Coordinates are wrapped internally by getAverageIntensity3x3
+            double intensity = getAverageIntensity3x3(sensorX, sensorY, states[index], isScout[index]);
+            if (intensity > bestIntensity) {
+                bestIntensity = intensity;
+                bestAngle = angle;
+            }
+        }
+
+        // If a trail is found, re-orient the ant toward the strongest one immediately
+        if (bestIntensity > 0) {
+            directions[index] = bestAngle;
+        }
     }
 
     public double[] getSensorPosition(int index, double sensorAngleOffset, double sensorDistance) {
