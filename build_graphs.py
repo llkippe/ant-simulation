@@ -49,7 +49,7 @@ colors = {sid: cmap(i % 10) for i, sid in enumerate(source_ids)}
 
 # convergence daten 
 troughput_convergence = 0.2
-#steps_to_reach_convergence_list = []
+steps_for_convergence_avg = 50
 convergence_data_pairs = []
 
 # Wir nutzen das bereits berechnete global_throughput
@@ -115,7 +115,8 @@ for d_step in deletion_steps:
 
 
 for i, sid in enumerate(source_ids):
-    source_data = df_source[df_source['source_id'] == sid]
+    # WICHTIG: Sicherstellen, dass die Daten nach 'step' sortiert sind, damit rolling() richtig funktioniert
+    source_data = df_source[df_source['source_id'] == sid].sort_values('step')
     color = colors[sid]
     y_pos = marker_y_start - (i * marker_spacing)
 
@@ -133,9 +134,19 @@ for i, sid in enumerate(source_ids):
                     marker=mmarkers.MarkerStyle('o', fillstyle='right'),
                     edgecolors='black', zorder=10)
 
-    # Throughput > 50 Score Calculation
-    over_convergence = source_data[source_data['throughput'] > troughput_convergence]
+    # --- KONVERGENZ (Gleitender Durchschnitt) ---
+    # Berechne den Durchschnitt über 'steps_for_convergence_avg' Schritte.
+    # min_periods sorgt dafür, dass erst ab Schritt 50 überhaupt ein Wert ausgespuckt wird.
+    rolling_avg = source_data['throughput'].rolling(
+        window=steps_for_convergence_avg, 
+        min_periods=steps_for_convergence_avg
+    ).mean()
+    
+    # Filtere die Originaldaten auf die Schritte, wo der gleitende Durchschnitt über dem Threshold liegt
+    over_convergence = source_data[rolling_avg > troughput_convergence]
+    
     if creation_step != -1 and not over_convergence.empty:
+        # Der erste Schritt, der die Bedingung erfüllt (das ist das ENDE des 50-Schritte-Fensters)
         first_step_over_convergence = over_convergence['step'].min()
         steps_to_reach_convergence = first_step_over_convergence - creation_step
         
