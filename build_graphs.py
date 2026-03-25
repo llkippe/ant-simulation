@@ -48,7 +48,7 @@ colors = {sid: cmap(i % 10) for i, sid in enumerate(source_ids)}
 #xticks = np.arange(0, max_step+100, 1000)
 
 # convergence daten 
-troughput_convergence = 1
+troughput_convergence = 0.2
 #steps_to_reach_convergence_list = []
 convergence_data_pairs = []
 
@@ -65,18 +65,22 @@ min_stable_steps = 100
 steps_for_avg = 50
 
 # ==========================================
-# GRAPH 1: SOURCE THROUGHPUT
+# GRAPH 1: SOURCE THROUGHPUT + SOURCE EVENTS (SEPARAT)
 # ==========================================
-fig1, ax1 = plt.subplots(figsize=(16, 8))
+fig1, (ax_tp, ax_markers) = plt.subplots(2, 1, figsize=(16, 9), sharex=True, gridspec_kw={'height_ratios': [2, 1]})
 
+ax_tp.stackplot(pivot_df.index, pivot_df.values.T,
+                labels=[f'Quelle {int(sid)}' for sid in source_ids],
+                colors=[colors[sid] for sid in source_ids], alpha=0.7)
 
-ax1.stackplot(pivot_df.index, pivot_df.values.T, 
-             labels=[f'Source {int(sid)}' for sid in source_ids], 
-             colors=[colors[sid] for sid in source_ids], alpha=0.7)
+ax_tp.set_ylabel('Durchsatz')
+ax_tp.set_title('Futterquellendurchsatz (gestapelt)')
+ax_tp.legend(loc='upper left', fontsize='small')
+ax_tp.grid(axis='y', linestyle='--', alpha=0.3)
 
 # Neue Werte für Marker-Positionen
-marker_y_start = -1 # Reduziert den Startpunkt
-marker_spacing = 1   # Reduziert den Abstand zwischen den Markern
+marker_y_start = (len(source_ids) - 1) * 1.5
+marker_spacing = 1.5   # Erhöht den Abstand, um Überlappung zu vermeiden
 
 
 for d_step in deletion_steps:
@@ -118,14 +122,14 @@ for i, sid in enumerate(source_ids):
     # Marker: Creation
     creation_step = source_data['creation_step'].max()
     if creation_step != -1:
-        ax1.scatter(creation_step, y_pos, color=color, s=120,
+        ax_markers.scatter(creation_step, y_pos, color=color, s=120,
                     marker=mmarkers.MarkerStyle('o', fillstyle='left'),
                     edgecolors='black', zorder=10)
 
     # Marker: Deletion
     deletion_step = source_data['deletion_step'].max()
     if deletion_step != -1:
-        ax1.scatter(deletion_step, y_pos, color=color, s=130,
+        ax_markers.scatter(deletion_step, y_pos, color=color, s=130,
                     marker=mmarkers.MarkerStyle('o', fillstyle='right'),
                     edgecolors='black', zorder=10)
 
@@ -137,72 +141,73 @@ for i, sid in enumerate(source_ids):
         
         convergence_data_pairs.append((sid, steps_to_reach_convergence))
 
-        ax1.scatter(first_step_over_convergence, y_pos, color=color, s=110, marker='^',
+        ax_markers.scatter(first_step_over_convergence, y_pos, color=color, s=110, marker='^',
                     edgecolors='black', zorder=10)
         
 if recovery_events:
     r_steps, r_values = zip(*recovery_events)
-    ax1.scatter(r_steps, r_values, color='darkviolet', s=90, marker='D', 
+    ax_tp.scatter(r_steps, r_values, color='darkviolet', s=90, marker='D', 
                 edgecolors='black', label='Resilienz erreicht', zorder=20)
+    ax_tp.legend(loc='upper left', fontsize='small')
 
 
-# Anpassung der unteren y-Achsenbegrenzungen
-lowest_y = marker_y_start - (len(source_ids) * marker_spacing)
-ax1.set_ylim(bottom=lowest_y) 
+# Marker-Panel konfigurieren
+ax_markers.set_ylim(-1, marker_y_start + 2)
+ax_markers.set_yticks([i * 1.5 for i in range(len(source_ids))])
+ax_markers.set_yticklabels([f'Quelle {int(sid)}' for sid in source_ids][::-1])
+ax_markers.set_xlabel('Simulations-Schritt', fontsize=12)
+ax_markers.set_ylabel('Lifecycle-Ereignisse', fontsize=12)
+ax_markers.set_title('Lifecycle-Ereignisse', fontsize=12)
+ax_markers.grid(axis='y', linestyle='--', alpha=0.3)
 
-# 1. Berechne den maximalen Gesamtdurchsatz (Summe aller Quellen pro Zeitschritt)
-max_total_throughput = pivot_df.sum(axis=1).max()
-
-# 2. Definiere das obere Limit für die Ticks (aufgerundet auf die nächste Ganzzahl für sauberere Ticks)
-upper_tick_limit = int(np.ceil(max_total_throughput))
-
-# 3. Y-Achse anpassen (wir ersetzen die 6 durch upper_tick_limit + 1, damit das Max enthalten ist)
-yticks = np.arange(len(source_ids) * -1, upper_tick_limit + 1, 1)
-ax1.set_yticks(yticks)
-
+# Durchsatz-Panel xticks y axis
 max_step = df_source['step'].max()
-tick_spacing = max(1000, (max_step // 10)) 
-# Rundet auf das nächste Tausender für saubere Zahlen
-tick_spacing = (tick_spacing // 1000) * 1000 
+tick_spacing = max(1000, (max_step // 10))
+# Rundet auf das nächste Tausender
+tick_spacing = (tick_spacing // 1000) * 1000
 
 xticks = np.arange(0, max_step + tick_spacing, tick_spacing)
-ax1.set_xticks(xticks)
+ax_tp.set_xticks(xticks)
+ax_markers.set_xticks(xticks)
+ax_tp.set_xticklabels([str(int(x)) for x in xticks], rotation=0)
+ax_markers.set_xticklabels([str(int(x)) for x in xticks], rotation=0)
 
+# Beide Achsen unten beschriften
+ax_tp.tick_params(axis='x', labelbottom=True)
+ax_markers.tick_params(axis='x', labelbottom=True)
 
-ax1.set_xlabel('Simulations Schritt', fontsize=12)
-ax1.set_ylabel('Durchsatz & Simulations Events', fontsize=12)
-ax1.set_title('Futterqullendurchsatz pro Zeitschritt', fontsize=16, pad=10)
-ax1.grid(axis='y', linestyle='--', alpha=0.3)
-
+ax_tp.set_xlabel('Simulations-Schritt', fontsize=12)
+ax_markers.set_xlabel('Simulations-Schritt', fontsize=12)
+ax_tp.set_ylabel('Durchsatz', fontsize=12)
+ax_tp.set_title('Futterquellendurchsatz pro Zeitschritt', fontsize=16, pad=10)
+ax_tp.grid(axis='y', linestyle='--', alpha=0.3)
+ax_markers.grid(axis='y', linestyle='--', alpha=0.3)
 
 # exploration / explotation index
 
 total_ants = df_settings['totalAnts'].iloc[0]
 ee_ratio = df_global['exploitingAntsCount'] / total_ants
 
-ax1_twin = ax1.twinx()
+ax_tp_twin = ax_tp.twinx()
 
 # Plotting the line
-line_twin = ax1_twin.plot(df_global['step'], ee_ratio, color='black', 
+two_line = ax_tp_twin.plot(df_global['step'], ee_ratio, color='black', 
                           linewidth=2, linestyle=':', label='Ausbeutungsrate')
 
-# ax1 current range: [lowest_y, 5] (based on your earlier code)
-throughput_min, throughput_max = ax1.get_ylim()
+# ax_tp current range
+throughput_min, throughput_max = ax_tp.get_ylim()
 
-# We want the twin axis to start at 0 at the same visual level as ax1's zero.
-# To do this, we set the twin bottom so that 0 is at the same % height.
-# Formula: twin_bottom = (throughput_min / throughput_max) * twin_max
-twin_max = 1.0  # Since it's a ratio 0.0 to 1.0
-twin_min = (throughput_min / throughput_max) * twin_max
+# Normalize twin axis so 0 is aligned
+if throughput_max > 0:
+    twin_max = 1.0
+    twin_min = (throughput_min / throughput_max) * twin_max
+else:
+    twin_min, twin_max = 0.0, 1.0
 
-ax1_twin.set_ylim(twin_min, twin_max)
+ax_tp_twin.set_ylim(twin_min, twin_max)
 
-# 5. Styling
-ax1_twin.set_ylabel('Ausbeutungsrate (Normalisiert)', color='black', fontsize=12)
-ax1_twin.tick_params(axis='y', labelcolor='black')
-
-# Update Legend to include the new line
-
+ax_tp_twin.set_ylabel('Ausbeutungsrate (Normalisiert)', color='black', fontsize=12)
+ax_tp_twin.tick_params(axis='y', labelcolor='black')
 
 # Legend Setup für Graph 1
 marker_legend_elements = [
@@ -219,9 +224,9 @@ marker_legend_elements = [
 
 source_legend_elements = [Line2D([0], [0], color=colors[sid], lw=6, label=f'Futterquelle {int(sid)}') for sid in source_ids]
 
-all_handles = marker_legend_elements + source_legend_elements + line_twin
-ax1.legend(handles=all_handles, loc='upper left', bbox_to_anchor=(1.1, 1))
-#ax1.legend(handles=marker_legend_elements + source_legend_elements, loc='upper left', bbox_to_anchor=(1.02, 1))
+all_handles = marker_legend_elements + source_legend_elements + two_line
+ax_tp.legend(handles=all_handles, loc='upper left', bbox_to_anchor=(1.1, 1))
+#ax_tp.legend(handles=marker_legend_elements + source_legend_elements, loc='upper left', bbox_to_anchor=(1.02, 1))
 
 fig1.tight_layout()
 fig1.savefig(out_source_png, bbox_inches='tight')
@@ -378,7 +383,10 @@ def get_stats(data_list):
     return [np.mean(data), np.std(data), np.min(data), np.max(data), np.median(data)]
 # Stats berechnen
 # Stats berechnen (liefert jetzt 5 Werte)
-_, steps_to_reach_convergence_list = zip(*convergence_data_pairs)
+if convergence_data_pairs:
+    _, steps_to_reach_convergence_list = zip(*convergence_data_pairs)
+else:
+    steps_to_reach_convergence_list = []
 
 stats_conv  = get_stats(steps_to_reach_convergence_list)
 stats_rec   = get_stats(recovery_times)

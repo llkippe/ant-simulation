@@ -4,19 +4,18 @@ einen hyperparameter festhalten den andern veraendern
 
 
 
-- convergence text auf deutsch/ bessere name
-
-- is ok wenn nicht alles std abweiung hat 
-- aggregate nochmal text ueberpruefen. farben anpassen
-- aggregate die achsenbeschriftung iwie besser machen.mehr werte
 
 - nochmal einzelne runs angucken. schauen wo sich duetlich sichbare unterschiede ergeben?
 - nochmal von davor angucken wo es dort eindeutiger war
-
 - mit N=2 schauen ob alles soweit funktioniert
 
+- erfolgsrate evtl doch mit einspeisen in rate? bzw zumindest daruaf achten
 
 
+- scouts senden kein to home pheromone aus?
+- weniger ameisen
+- andere werte weniger evap
+- feste grenzen welt is auch begrenzt
 
 
 

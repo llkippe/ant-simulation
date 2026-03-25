@@ -2,6 +2,13 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import argparse
+
+# Argument parsing
+parser = argparse.ArgumentParser(description='Aggregate simulation results across runs.')
+parser.add_argument('--force', action='store_true', help='Force recalculation even if output files already exist.')
+parser.add_argument('--config', type=str, help='Path to a specific config folder to process (relative to data directory). If not specified, processes all config folders.')
+args = parser.parse_args()
 
 data_dir = "data"
 
@@ -9,8 +16,17 @@ print("="*60)
 print(" STARTE META-AGGREGATION DER SIMULATIONEN")
 print("="*60)
 
-# Gehe durch alle Ordner im data-Verzeichnis
-for config_folder in os.listdir(data_dir):
+# Determine which config folders to process
+if args.config:
+    config_folders = [args.config]
+    if not os.path.exists(os.path.join(data_dir, args.config)):
+        print(f"Fehler: Konfigurationsordner '{args.config}' existiert nicht in {data_dir}")
+        exit(1)
+else:
+    config_folders = os.listdir(data_dir)
+
+# Gehe durch die ausgewählten Ordner im data-Verzeichnis
+for config_folder in config_folders:
     config_path = os.path.join(data_dir, config_folder)
 
     # Überspringe Dateien, wir suchen nur Konfigurations-Ordner
@@ -20,6 +36,26 @@ for config_folder in os.listdir(data_dir):
     # Suche alle Run-Ordner in diesem Konfigurations-Ordner
     run_folders = [f for f in os.listdir(config_path) if f.startswith("run_")]
     if not run_folders:
+        continue
+
+    # Check if output files already exist and skip if not forcing
+    expected_files = [
+        "meta_throughput.csv",
+        "04_meta_throughput.png",
+        "meta_global_metrics.csv",
+        "05_meta_global_metrics.png",
+        "meta_performance_summary.csv",
+        "06_meta_performance_boxplots.png"
+    ]
+    all_exist = all(os.path.exists(os.path.join(config_path, f)) for f in expected_files)
+    skip_reason = None
+    if len(run_folders) == 1:
+        skip_reason = "nur ein Lauf vorhanden"
+    elif all_exist and not args.force:
+        skip_reason = "Ausgabedateien existieren bereits"
+    
+    if skip_reason:
+        print(f"Überspringe Konfiguration: {config_folder} ({skip_reason})")
         continue
 
     print(f"\nVerarbeite Konfiguration: {config_folder} ({len(run_folders)} Läufe)")
@@ -79,6 +115,7 @@ for config_folder in os.listdir(data_dir):
     # Meta-Throughput: Durchschnitt + Standardabweichung (ohne null-gefüllte Steps)
     if all_run_throughputs:
         tp_df = pd.concat(all_run_throughputs, axis=1)
+        #print(tp_df)
         mean_tp = tp_df.mean(axis=1, skipna=True)
         std_tp = tp_df.std(axis=1, skipna=True)
         count_tp = tp_df.count(axis=1)

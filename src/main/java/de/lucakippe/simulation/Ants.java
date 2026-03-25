@@ -13,7 +13,7 @@ public class Ants {
     private boolean[] isScout;
 
     private boolean[] isFollowingStrongPath;
-    private final double STRONG_PATH_THRESHOLD = 4;
+    private final double STRONG_PATH_THRESHOLD = 3.5;
     private final int CONFUSED_STEP_INTERVAL = 55;
     private final double PERCENTAGE_TRIGGER_END_OF_TRAIL = 0.15;
     private final int[] stepsSinceLeavingStrongPath;
@@ -21,13 +21,13 @@ public class Ants {
 
     private double speed = 1.0;
     private double wanderStrength = 0.3; // in radians (random value between -wanderStrength/2 and +wanderStrength/2)
-    private double steeringStrength = 0.5; // in radians;
+    private double steeringStrength = 0.4; // in radians;
 
     private double maxPheromoneDepositAmount = 0.8;
     private double maxPheromoneDepositAmountScoutOnFood = 5.5;
     private double[] currentPheromoneDepositAmount;
-    private double pheremonDepositDecayRate = 0.015;
-    private double foodDepletedStrength = 2; // based on research anti is double as strong
+    private double pheremonDepositDecayRate = 0.01;
+    private double foodDepletedWeight = 2; // based on research anti is double as strong
 
     private double sensorDistance = 25.0;
     private double sensorOffsetAngle = Math.PI / 5; // 36 grad
@@ -230,7 +230,7 @@ public class Ants {
                         double foodIntensity = pheromones.getFoodPheromone(sx, sy);
                         double depletedIntensity = pheromones.getFoodDepletedPheromone(sx, sy);
 
-                        sum += Math.max(0, foodIntensity - (depletedIntensity * foodDepletedStrength)); 
+                        sum += Math.max(0, foodIntensity - (depletedIntensity * foodDepletedWeight)); 
                     }           
                 } else { // RETURNING_HOME OR RETURNING_HOME_DISSAPOINTED
                     if (nest.isInsideNest(sx, sy)) sum += TARGET_BOOST;

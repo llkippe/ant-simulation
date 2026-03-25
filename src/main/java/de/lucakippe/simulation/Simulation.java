@@ -1,25 +1,26 @@
 
 package de.lucakippe.simulation;
 
+import java.util.Random;
 
 public class Simulation {
-    public final static int WIDTH = 650;
-    public final static int HEIGHT = 650;
-    final static int NUM_ANTS = 2500;
+    public final static int WIDTH = 700;
+    public final static int HEIGHT = 700;
+    final static int NUM_ANTS = 800;
     final static double PERCENT_SCOUT_ANTS = 0.1; 
 
 
     private int maxStepCount;
     public int stepCount = 0;
-    private boolean isRendered;
 
     private Ants ants;
     private Nest nest;
 
 
-    public static final int MIN_DIST_TO_NEST = 120;
+    public static final int MIN_DIST_TO_NEST = 170;
     public static final int MIN_DIST_BETWEEN_FOODSOURCES = 100;
-    private static int foodSourceSize = 13;
+    private static int foodSourceSize = 15;
+    private static int nestSize = 20;
     public int foodSourceCount;
     public int foodSpawnIntervall;
     private Food[] foodSources;
@@ -30,8 +31,14 @@ public class Simulation {
 
     private Pheromones pheromones;
 
+    Random random;
+
     
-    public Simulation(boolean isRendered, boolean antiPheromoneActive, int simFoodSources, int newFoodSpawnIntervall, String baseDirName, int runIndex) {
+    public Simulation(boolean isRendered, boolean antiPheromoneActive, int simFoodSources, int newFoodSpawnIntervall, String baseDirName, int runIndex, long seed) {
+        this.random = new Random(seed);
+
+
+
         foodSourceCount = simFoodSources;
         foodSpawnIntervall = newFoodSpawnIntervall;
         
@@ -45,7 +52,7 @@ public class Simulation {
         
         
         
-        nest = new Nest(WIDTH / 2, HEIGHT / 2, 35);
+        nest = new Nest(WIDTH / 2, HEIGHT / 2, nestSize);
         foodSources = new Food[foodSourceCount];
         metricsManager = new MetricsManager(nest, foodSources, foodSpawnIntervall, foodSourceCount, antiPheromoneActive, NUM_ANTS, baseDirName, runIndex);
       
@@ -59,7 +66,6 @@ public class Simulation {
         ants = new Ants(pheromones, nest, foodSources,metricsManager, antiPheromoneActive);
 
 
-        this.isRendered = isRendered;
         if(!isRendered ) {
             while(stepCount < maxStepCount) {
                 update();
@@ -99,8 +105,8 @@ public class Simulation {
             totalAge += ages[i];
         }
 
-        // 2. Würfeln (Roulette Wheel)
-        double roll = Math.random() * totalAge;
+        // 2. Würfeln (Roulette Wheel with random seed implementation)
+        double roll = random.nextDouble() * totalAge;
         double cumulativeAge = 0;
         int indexToDelete = 0;
 
@@ -125,8 +131,8 @@ public class Simulation {
 
         for (int t = 0; t < maxTries; t++) {
 
-            int posX = (int) (Math.random() * WIDTH);
-            int posY = (int) (Math.random() * HEIGHT);
+            int posX = random.nextInt(WIDTH);
+            int posY = random.nextInt(HEIGHT);
 
             
             // check nest distance
@@ -158,7 +164,7 @@ public class Simulation {
         }
 
 
-        // fallback if map is crowded
+        // determenistic fallback if map is crowded
         Food newFood =  new Food(
             nest.getPosX() - MIN_DIST_TO_NEST,
             nest.getPosY() - MIN_DIST_TO_NEST ,

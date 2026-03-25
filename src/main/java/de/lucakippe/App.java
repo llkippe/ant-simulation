@@ -8,71 +8,74 @@ import java.util.concurrent.TimeUnit;
 
 public class App {
     public static void main(String[] args) {
-        // Definition der Batch-Größe
-        int N = 10; 
+       
+     //runBatches();
+     
+         
+       runVis();
+        
+    }
 
-        // Deine gewünschten Konfigurationen: {FoodSources, SpawnInterval}
-        // (4 Quellen / 2000 Intervall überschneidet sich in deinen Gruppen, 
-        //  daher schreiben wir es hier nur einmal auf, um Redundanz zu sparen)
-        int[][] configs = {
-            //{2,1000}            
+    public static void runVis() {
+        int foodCount = 3;
+        int interval = 1500;
+        boolean antiPheromones = false;
 
-            {2, 2000}, {4, 2000}, {8, 2000}, // Gruppe 1 (Quellen im Fokus)
-            {4, 1000}, {4, 4000}             // Gruppe 2 (Intervalle im Fokus)
-        };
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        long runSeed = timestamp.hashCode(); 
+        System.out.println(runSeed);
+        String baseDirName = timestamp + "_" + foodCount + "_" + interval + "_" + antiPheromones;
 
+        Simulation sim = new Simulation(true, antiPheromones, foodCount, interval, baseDirName, 0, 1814807349);
+        
+        
+       Renderer visualizer = new Renderer(sim); // Pass the simulation to the renderer
+       PApplet.runSketch(new String[]{"AntSimulation"}, visualizer);
+    }
+
+   public static void runBatches() {
+        int N = 5; 
+        int[][] configs = { {3, 1500} };
         boolean[] antiPheromones = {true, false};
 
         ExecutorService executor = Executors.newFixedThreadPool(4);
 
         for (int[] config : configs) {
-            for (boolean ap : antiPheromones) {
-                int foodCount = config[0];
-                int interval = config[1];
+            int foodCount = config[0];
+            int interval = config[1];
+            String timestamp = String.valueOf(System.currentTimeMillis());
 
-                // Generiere DEN SELBEN Timestamp für den gesamten Batch
-                String timestamp = String.valueOf(System.currentTimeMillis());
-                String baseDirName = timestamp + "_" + foodCount + "_" + interval + "_" + ap;
-            
-                for (int run = 1; run <= N; run++) {
+            // Iterate through the run indices first
+            for (int run = 1; run <= N; run++) {
+                // Generate ONE seed for this specific run number
+                long runSeed = timestamp.hashCode() + run; 
+                
+                for (boolean ap : antiPheromones) {
                     final int currentRun = run;
+                    final boolean currentAp = ap;
+                    
+                    // Separate directories to prevent file conflicts
+                    String baseDirName = timestamp + "_" + foodCount + "_" + interval + "_" + ap;
+                    
                     executor.submit(() -> {
-                    try {
-                        new Simulation(false, ap, foodCount, interval, baseDirName, currentRun);
-                    } catch (Throwable t) { // Catch Throwable, not just Exception
-                        System.err.println("Simulation " + currentRun + " crashed!");
-                        t.printStackTrace();
-                    }
-                });
+                        try {
+                            // Both ap=true and ap=false will now use runSeed
+                            new Simulation(false, currentAp, foodCount, interval, baseDirName, currentRun, runSeed);
+                        } catch (Throwable t) {
+                            System.err.println("Simulation " + currentRun + " (AP=" + currentAp + ") crashed!");
+                            t.printStackTrace();
+                        }
+                    });
                 }
             }
         }
 
-                executor.shutdown();
+        executor.shutdown();
         try {
-            // Wait for all tasks to finish (timeout after 1 hour)
             executor.awaitTermination(2, TimeUnit.HOURS);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        
-     //  runVis();
-        
-    }
-
-    public static void runVis() {
-        int foodCount = 8;
-        int interval = 1000;
-        boolean antiPheromones = true;
-
-        String timestamp = String.valueOf(System.currentTimeMillis());
-        String baseDirName = timestamp + "_" + foodCount + "_" + interval + "_" + antiPheromones;
-
-        Simulation sim = new Simulation(true, antiPheromones, foodCount, interval, baseDirName, 0);
-        
-        
-       Renderer visualizer = new Renderer(sim); // Pass the simulation to the renderer
-       PApplet.runSketch(new String[]{"AntSimulation"}, visualizer);
     }
 
 

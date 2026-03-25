@@ -101,9 +101,10 @@ public class Renderer extends PApplet {
         Food[] foodSources = sim.getFoodSources();
         for(int i = 0; i < foodSources.length; i++) {
             var food = foodSources[i];
+            fill(255, 0, 0, 150);
             circle(food.getPosX() * scaleX, food.getPosY() * scaleY, food.getRadius() * 2 * scaleX);
- fill(255, 0, 0, 20);
-           circle(food.getPosX() * scaleX, food.getPosY() * scaleY, Simulation.MIN_DIST_BETWEEN_FOODSOURCES * 2 * scaleX);
+ //fill(255, 0, 0, 20);
+         //  circle(food.getPosX() * scaleX, food.getPosY() * scaleY, Simulation.MIN_DIST_BETWEEN_FOODSOURCES * 2 * scaleX);
         }
     }
 
@@ -113,7 +114,7 @@ public class Renderer extends PApplet {
         Nest nest = sim.getNest();
         circle(nest.getPosX() * scaleX, nest.getPosY() * scaleY, nest.getRadius() * 2 * scaleX);
         fill(0, 0, 255, 20);
-          circle(nest.getPosX() * scaleX, nest.getPosY() * scaleY, Simulation.MIN_DIST_TO_NEST * 2 * scaleX);
+        //  circle(nest.getPosX() * scaleX, nest.getPosY() * scaleY, Simulation.MIN_DIST_TO_NEST * 2 * scaleX);
     }
 
     
