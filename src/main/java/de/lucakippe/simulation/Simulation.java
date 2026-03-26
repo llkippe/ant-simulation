@@ -20,7 +20,7 @@ public class Simulation {
     public static final int MIN_DIST_TO_NEST = 170;
     public static final int MIN_DIST_BETWEEN_FOODSOURCES = 100;
     private static int foodSourceSize = 15;
-    private static int nestSize = 20;
+    private static int nestSize = 35;
     public int foodSourceCount;
     public int foodSpawnIntervall;
     private Food[] foodSources;
@@ -63,7 +63,7 @@ public class Simulation {
         
         
         pheromones = new Pheromones();
-        ants = new Ants(pheromones, nest, foodSources,metricsManager, antiPheromoneActive);
+        ants = new Ants(pheromones, nest, foodSources,metricsManager, antiPheromoneActive, seed);
 
 
         if(!isRendered ) {

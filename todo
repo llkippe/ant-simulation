@@ -4,6 +4,9 @@ einen hyperparameter festhalten den andern veraendern
 
 
 
+- random seed auch fuer richtungen und fuer ant wandering implementieren.
+- hat das eigenen random generator? oder der selbe
+
 
 - nochmal einzelne runs angucken. schauen wo sich duetlich sichbare unterschiede ergeben?
 - nochmal von davor angucken wo es dort eindeutiger war

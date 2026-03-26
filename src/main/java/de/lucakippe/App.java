@@ -12,12 +12,12 @@ public class App {
      runBatches();
      
          
-     //  runVis();
+     // runVis();
         
     }
 
     public static void runVis() {
-        int foodCount = 3;
+        int foodCount = 6;
         int interval = 1500;
         boolean antiPheromones = false;
 
@@ -26,7 +26,7 @@ public class App {
         System.out.println(runSeed);
         String baseDirName = timestamp + "_" + foodCount + "_" + interval + "_" + antiPheromones;
 
-        Simulation sim = new Simulation(true, antiPheromones, foodCount, interval, baseDirName, 0, 1814807349);
+        Simulation sim = new Simulation(true, antiPheromones, foodCount, interval, baseDirName, 0, 122922892);
         
         
        Renderer visualizer = new Renderer(sim); // Pass the simulation to the renderer
@@ -34,8 +34,11 @@ public class App {
     }
 
    public static void runBatches() {
-        int N = 5; 
-        int[][] configs = { {3, 1500} };
+        int N = 8; 
+        // deutlicher unterschied 
+
+
+        int[][] configs = { {3, 1500}, {6, 1500} , {3, 3000}};
         boolean[] antiPheromones = {true, false};
 
         ExecutorService executor = Executors.newFixedThreadPool(4);

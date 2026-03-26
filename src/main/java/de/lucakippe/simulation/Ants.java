@@ -1,5 +1,7 @@
 package de.lucakippe.simulation;
 
+import java.util.Random;
+
 public class Ants {
     private Pheromones pheromones;
     private boolean antiPheromoneActive;
@@ -36,8 +38,12 @@ public class Ants {
     private MetricsManager metricsManager;
     private Food[] foodSources;
 
+    private Random random;
 
-    public Ants(Pheromones pheromones, Nest nest, Food[] foodSources, MetricsManager metricsManager, boolean antiPheromoneActive) {
+
+    public Ants(Pheromones pheromones, Nest nest, Food[] foodSources, MetricsManager metricsManager, boolean antiPheromoneActive, long seed) {
+        this.random = new Random(seed);
+
         this.pheromones = pheromones;
         this.nest = nest;
         this.foodSources = foodSources;
@@ -56,9 +62,13 @@ public class Ants {
         this.stepsSinceLeavingStrongPath = new int[Simulation.NUM_ANTS];
 
         for(int i = 0; i < Simulation.NUM_ANTS; i++) {
-            posX[i] = nest.getPosX();
-            posY[i] = nest.getPosY();
-            directions[i] = Math.random() * 2 * Math.PI;
+            double angle = random.nextDouble() * 2 * Math.PI;
+// Wurzel ziehen für gleichmäßige Verteilung
+double r = nest.getRadius() * Math.sqrt(random.nextDouble()); 
+
+posX[i] = nest.getPosX() + r * Math.cos(angle);
+posY[i] = nest.getPosY() + r * Math.sin(angle);
+            directions[i] = this.random.nextDouble() * 2 * Math.PI;
             
             states[i] = AntState.SEARCHING_FOR_FOOD;
             currentPheromoneDepositAmount[i] = maxPheromoneDepositAmount;
@@ -122,9 +132,13 @@ public class Ants {
 
             //directions[index] += Math.PI; // turn around
             // Teleport to center and pick a random unbiased direction to treat nest as coordiantion hub, unbiased sampling of env
-            posX[index] = nest.getPosX();
-            posY[index] = nest.getPosY();
-            directions[index] = Math.random() * 2.0 * Math.PI;
+            double angle = random.nextDouble() * 2 * Math.PI;
+// Wurzel ziehen für gleichmäßige Verteilung
+double r = nest.getRadius() * Math.sqrt(random.nextDouble()); 
+
+posX[index] = nest.getPosX() + r * Math.cos(angle);
+posY[index] = nest.getPosY() + r * Math.sin(angle);
+            directions[index] = this.random.nextDouble() * 2 * Math.PI;
 
 
 
@@ -183,7 +197,7 @@ public class Ants {
             }
         }
 
-        double randomWiggle = (Math.random() - 0.5) * wanderStrength;
+        double randomWiggle = (random.nextDouble() - 0.5) * wanderStrength;
         directions[index] += steeringDirection + randomWiggle;
     }
 

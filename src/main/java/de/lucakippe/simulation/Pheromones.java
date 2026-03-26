@@ -18,7 +18,7 @@ public class Pheromones {
     final static double DIFFUSION_RATE = 0.04;
     final static double FOOD_DEPLETED_DIFFUSION_RATE = 0.25;
 
-    final static double MAX_PHEROMONE_STRENGTH = 10.0;
+    final static double MAX_PHEROMONE_STRENGTH = 13.0;
 
    
 
