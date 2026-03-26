@@ -40,7 +40,7 @@ public class MetricsManager {
 
 
 
-    MetricsManager(Nest nest, Food[] foodSources, int foodSpawnIntervall, int foodSourceCount, boolean antiPheromoneActive, int totalAnts, String baseDirName, int runIndex) {
+    MetricsManager(Nest nest, Food[] foodSources, int foodSpawnIntervall, int foodSourceCount, boolean antiPheromoneActive, int totalAnts, String baseDirName, int runIndex, long randomSeed) {
         this.nest = nest;
         this.foodSources = foodSources;
 
@@ -62,8 +62,8 @@ public class MetricsManager {
             globalMetricsWriter.println("step,avg_step_efficeny_to_food,avg_step_efficeny_to_nest,dissapointmentRate,exploitingAntsCount");
 
             settingsWriter = new PrintWriter(simulationDataDir.resolve("settings.csv").toFile());
-            settingsWriter.println("FOOD_SPAWN_INTERVALL, FOOD_SOURCE_COUNT, antiPheromoneActive,totalAnts");
-            settingsWriter.println(foodSpawnIntervall + "," + foodSourceCount + "," + antiPheromoneActive + "," + totalAnts);
+            settingsWriter.println("FOOD_SPAWN_INTERVALL, FOOD_SOURCE_COUNT, antiPheromoneActive,totalAnts,reportingInterval,randomSeed");
+            settingsWriter.println(foodSpawnIntervall + "," + foodSourceCount + "," + antiPheromoneActive + "," + totalAnts + "," + INTERVAL + "," + randomSeed);
             settingsWriter.flush();
 
             sourceThroughputWindows.clear();

@@ -72,55 +72,101 @@ public class Pheromones {
 }
 
     public void diffuse() {
-        // 1. Create temporary arrays to store the results
-        double[] newHomeGrid = new double[homeGrid.length];
-        double[] newFoodGrid = new double[foodGrid.length];
-        double[] newFoodDepletedGrid = new double[foodDepletedGrid.length];
+        double[] newHome = new double[homeGrid.length];
+        double[] newFood = new double[foodGrid.length];
+        double[] newFoodDepleted = new double[foodDepletedGrid.length];
 
         int W = Simulation.WIDTH;
         int H = Simulation.HEIGHT;
 
-        for (int i = 0; i < homeGrid.length; i++) {
-            int x = i % W;
-            int y = i / W;
+        // --- PART 1: THE INNER CORE (The Speed Demon) ---
+        // We skip the first/last rows and columns (y=1 to H-2, x=1 to W-2)
+        // No "if" checks, no modulo math, pure raw calculation.
+        // Inside your diffuse() method, for the "Inner Core":
+        int[] offsets = {
+            -W - 1, -W, -W + 1, // Top neighbors
+            -1,      0,      1, // Middle neighbors
+             W - 1,  W,  W + 1  // Bottom neighbors
+        };
 
-            double sumHome = 0;
-            double sumFood = 0;
-            double sumFoodDepleted = 0;
+        for (int y = 1; y < H - 1; y++) {
+            for (int x = 1; x < W - 1; x++) {
+                int i = y * W + x;
 
-            // 2. Sample the 3x3 neighborhood (including the center)
-            for (int offsetX = -1; offsetX <= 1; offsetX++) {
-                for (int offsetY = -1; offsetY <= 1; offsetY++) {
-
-                    // 3. The "Wrap-around" logic
-                    int neighborX = (x + offsetX + W) % W;
-                    int neighborY = (y + offsetY + H) % H;
-                    int neighborIndex = neighborY * W + neighborX;
-
-                    sumHome += homeGrid[neighborIndex];
-                    sumFood += foodGrid[neighborIndex];
-                    sumFoodDepleted += foodDepletedGrid[neighborIndex];
+                double sH = 0, sF = 0, sD = 0;
+            
+                // This loop is now just simple addition. Extremely fast.
+                for (int offset : offsets) {
+                    int nIdx = i + offset;
+                    sH += homeGrid[nIdx];
+                    sF += foodGrid[nIdx];
+                    sD += foodDepletedGrid[nIdx];
                 }
+            
+                newHome[i] = homeGrid[i] + (sH / 9.0 - homeGrid[i]) * DIFFUSION_RATE;
+                newFood[i] = foodGrid[i] + (sF / 9.0 - foodGrid[i]) * DIFFUSION_RATE;
+                newFoodDepleted[i] = foodDepletedGrid[i] + (sD / 9.0 - foodDepletedGrid[i]) * FOOD_DEPLETED_DIFFUSION_RATE;
             }
-
-            // 4. Calculate the average and apply the rate
-            double avgHome = sumHome / 9.0;
-            double avgFood = sumFood / 9.0;
-            double avgFoodDepleted = sumFoodDepleted / 9.0;
-
-            // Linear interpolation between current value and neighbor average
-            newHomeGrid[i] = homeGrid[i] + (avgHome - homeGrid[i]) * DIFFUSION_RATE;
-            newFoodGrid[i] = foodGrid[i] + (avgFood - foodGrid[i]) * DIFFUSION_RATE;
-            newFoodDepletedGrid[i] = foodDepletedGrid[i] + (avgFoodDepleted - foodDepletedGrid[i]) * FOOD_DEPLETED_DIFFUSION_RATE;
         }
 
-        // 5. Swap the grids
-        homeGrid = newHomeGrid;
-        foodGrid = newFoodGrid;
-        foodDepletedGrid = newFoodDepletedGrid;
-    }   
+        // --- PART 2: THE BOUNDARIES (The "Safe" Slow Path) ---
+        // Only run the wrap-around/border logic for the outermost pixels
+        handleEdges(newHome, newFood, newFoodDepleted, W, H);
 
-   
+        homeGrid = newHome;
+        foodGrid = newFood;
+        foodDepletedGrid = newFoodDepleted;
+    }
+
+   private void handleEdges(double[] nextHome, double[] nextFood, double[] nextDepleted, int W, int H) {
+    // 1. Process Top and Bottom rows
+    for (int x = 0; x < W; x++) {
+        updateSingleCell(x, 0, nextHome, nextFood, nextDepleted, W, H);     // Top row
+        updateSingleCell(x, H - 1, nextHome, nextFood, nextDepleted, W, H); // Bottom row
+    }
+
+    // 2. Process Left and Right columns (skipping corners already handled above)
+    for (int y = 1; y < H - 1; y++) {
+        updateSingleCell(0, y, nextHome, nextFood, nextDepleted, W, H);     // Left column
+        updateSingleCell(W - 1, y, nextHome, nextFood, nextDepleted, W, H); // Right column
+    }
+}
+
+// Helper to perform the complex logic (with borders and wrap-around) on a single pixel
+private void updateSingleCell(int x, int y, double[] nextHome, double[] nextFood, double[] nextDepleted, int W, int H) {
+    int i = y * W + x;
+    double sumHome = 0, sumFood = 0, sumDepleted = 0;
+    int samples = 0;
+
+    for (int oy = -1; oy <= 1; oy++) {
+        for (int ox = -1; ox <= 1; ox++) {
+            int nx = x + ox;
+            int ny = y + oy;
+
+            // If borders are active and we are outside, skip this neighbor
+            if (Simulation.bordersActive && Simulation.outsideOfBorder(nx, ny)) {
+                continue; 
+            }
+
+            // Wrap-around logic for neighbors
+            int neighborX = (nx + W) % W;
+            int neighborY = (ny + H) % H;
+            int nIdx = neighborY * W + neighborX;
+
+            sumHome += homeGrid[nIdx];
+            sumFood += foodGrid[nIdx];
+            sumDepleted += foodDepletedGrid[nIdx];
+            samples++;
+        }
+    }
+
+    // Use the actual number of samples collected (to handle border cut-offs correctly)
+    double div = (samples > 0) ? (double)samples : 1.0;
+    
+    nextHome[i] = homeGrid[i] + (sumHome / div - homeGrid[i]) * DIFFUSION_RATE;
+    nextFood[i] = foodGrid[i] + (sumFood / div - foodGrid[i]) * DIFFUSION_RATE;
+    nextDepleted[i] = foodDepletedGrid[i] + (sumDepleted / div - foodDepletedGrid[i]) * FOOD_DEPLETED_DIFFUSION_RATE;
+}
 
    
 

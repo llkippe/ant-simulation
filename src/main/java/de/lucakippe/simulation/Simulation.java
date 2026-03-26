@@ -8,6 +8,7 @@ public class Simulation {
     public final static int HEIGHT = 700;
     final static int NUM_ANTS = 800;
     final static double PERCENT_SCOUT_ANTS = 0.1; 
+    final static boolean bordersActive = true;
 
 
     private int maxStepCount;
@@ -54,7 +55,7 @@ public class Simulation {
         
         nest = new Nest(WIDTH / 2, HEIGHT / 2, nestSize);
         foodSources = new Food[foodSourceCount];
-        metricsManager = new MetricsManager(nest, foodSources, foodSpawnIntervall, foodSourceCount, antiPheromoneActive, NUM_ANTS, baseDirName, runIndex);
+        metricsManager = new MetricsManager(nest, foodSources, foodSpawnIntervall, foodSourceCount, antiPheromoneActive, NUM_ANTS, baseDirName, runIndex, seed);
       
         
         for (int i = 0; i < foodSources.length; i++) {
@@ -194,6 +195,11 @@ public class Simulation {
         return Math.sqrt(dx * dx + dy * dy);
     }
 
+    public static boolean outsideOfBorder(double x, double y) {
+        if(y < 0 || y >= HEIGHT || x < 0 || x >= WIDTH) return true;
+        return false;
+    }
+
     public Ants getAnts() {
         return ants;
     }   
@@ -213,4 +219,6 @@ public class Simulation {
     public int getStepCount() {
         return stepCount;
     }
+
+
 }

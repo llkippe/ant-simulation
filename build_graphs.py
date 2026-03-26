@@ -44,12 +44,14 @@ source_ids = sorted(pivot_df.columns)
 cmap = plt.get_cmap('tab10')
 colors = {sid: cmap(i % 10) for i, sid in enumerate(source_ids)}
 
+
 #max_step = df_source['step'].max()
 #xticks = np.arange(0, max_step+100, 1000)
 
 # convergence daten 
 troughput_convergence = 0.2
-steps_for_convergence_avg = 50
+steps_for_convergence_avg = 200
+window_size_for_convergence_avg = int(steps_for_convergence_avg / df_settings['reportingInterval'].iloc[0])
 convergence_data_pairs = []
 
 # Wir nutzen das bereits berechnete global_throughput
@@ -61,8 +63,8 @@ recovery_events = [] # Liste für Marker: (step, throughput_value)
 recovery_times = []  # Liste für Statistik: (time_delta)
 # Puffer und Bestätigungsfenster definieren
 puffer = 0.9  # 90% des alten Niveaus reichen als "recovered"
-min_stable_steps = 100
-steps_for_avg = 50
+min_stable_steps = 400 # fuer wie lange ist das niveu gehalten 
+steps_for_avg = 400 #
 
 # ==========================================
 # GRAPH 1: SOURCE THROUGHPUT + SOURCE EVENTS (SEPARAT)
@@ -109,7 +111,7 @@ for d_step in deletion_steps:
             if not future.empty and future.min() >= target_value:
                 recovery_step = step
                 recovery_times.append(recovery_step - d_step)
-                recovery_events.append((recovery_step, value))
+                recovery_events.append((recovery_step, value, d_step))
                 break
 
 
@@ -117,6 +119,7 @@ for d_step in deletion_steps:
 for i, sid in enumerate(source_ids):
     # WICHTIG: Sicherstellen, dass die Daten nach 'step' sortiert sind, damit rolling() richtig funktioniert
     source_data = df_source[df_source['source_id'] == sid].sort_values('step')
+    
     color = colors[sid]
     y_pos = marker_y_start - (i * marker_spacing)
 
@@ -133,14 +136,19 @@ for i, sid in enumerate(source_ids):
         ax_markers.scatter(deletion_step, y_pos, color=color, s=130,
                     marker=mmarkers.MarkerStyle('o', fillstyle='right'),
                     edgecolors='black', zorder=10)
+    
 
     # --- KONVERGENZ (Gleitender Durchschnitt) ---
     # Berechne den Durchschnitt über 'steps_for_convergence_avg' Schritte.
     # min_periods sorgt dafür, dass erst ab Schritt 50 überhaupt ein Wert ausgespuckt wird.
+    
+   
     rolling_avg = source_data['throughput'].rolling(
-        window=steps_for_convergence_avg, 
-        min_periods=steps_for_convergence_avg
+        window=window_size_for_convergence_avg, 
+        min_periods=window_size_for_convergence_avg
     ).mean()
+
+
     
     # Filtere die Originaldaten auf die Schritte, wo der gleitende Durchschnitt über dem Threshold liegt
     over_convergence = source_data[rolling_avg > troughput_convergence]
@@ -156,9 +164,19 @@ for i, sid in enumerate(source_ids):
                     edgecolors='black', zorder=10)
         
 if recovery_events:
-    r_steps, r_values = zip(*recovery_events)
+    r_steps, r_values, r_del_steps = zip(*recovery_events)
     ax_tp.scatter(r_steps, r_values, color='darkviolet', s=90, marker='D', 
                 edgecolors='black', label='Resilienz erreicht', zorder=20)
+    for step, del_step, value in zip(r_steps, r_del_steps, r_values):
+        ax_tp.text(
+            step, value + 0.05,
+            f"{del_step}",
+            fontsize=9,
+            ha='center',
+            va='bottom',
+            bbox=dict(facecolor='white', edgecolor='none', alpha=0.8, boxstyle='round,pad=0.1')
+        )
+    
     ax_tp.legend(loc='upper left', fontsize='small')
 
 

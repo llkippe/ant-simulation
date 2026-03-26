@@ -238,10 +238,16 @@ posY[index] = nest.getPosY() + r * Math.sin(angle);
     // extrem boost to go to nest or food source
     private double getAverageIntensity3x3(double x, double y, AntState state, boolean isScout) {
         double sum = 0;
+        double count = 0;
         double TARGET_BOOST = 1000.0; // Ein extrem hoher Wert für das Ziel
 
         for (int ox = -1; ox <= 1; ox++) {
             for (int oy = -1; oy <= 1; oy++) {
+                if(Simulation.bordersActive && Simulation.outsideOfBorder(x + ox, y + oy)) {
+                    continue;
+                }
+
+                count++;
                 int sx = (int) (x + ox + Simulation.WIDTH) % Simulation.WIDTH;
                 int sy = (int) (y + oy + Simulation.HEIGHT) % Simulation.HEIGHT;
 
@@ -259,37 +265,16 @@ posY[index] = nest.getPosY() + r * Math.sin(angle);
                 }
             }
         }
-        return sum / 9.0;
+        return sum / count;
     }
 
-    private void performOmniDirectionalSensing(int index) {
-        double bestIntensity = -1;
-        double bestAngle = directions[index];
-        int numSamples = 12; // Sample directions in 30-degree increments
-
-        for (int i = 0; i < numSamples; i++) {
-            double angle = (i * 2.0 * Math.PI) / numSamples;
-            double sensorX = posX[index] + Math.cos(angle) * sensorDistance;
-            double sensorY = posY[index] + Math.sin(angle) * sensorDistance;
-
-            // Coordinates are wrapped internally by getAverageIntensity3x3
-            double intensity = getAverageIntensity3x3(sensorX, sensorY, states[index], isScout[index]);
-            if (intensity > bestIntensity) {
-                bestIntensity = intensity;
-                bestAngle = angle;
-            }
-        }
-
-        // If a trail is found, re-orient the ant toward the strongest one immediately
-        if (bestIntensity > 0) {
-            directions[index] = bestAngle;
-        }
-    }
+   
 
     public double[] getSensorPosition(int index, double sensorAngleOffset, double sensorDistance) {
         double sensorAngle = directions[index] + sensorAngleOffset;
         double sensorX = (posX[index] + Math.cos(sensorAngle) * sensorDistance);
         double sensorY = (posY[index] + Math.sin(sensorAngle) * sensorDistance);
+
 
         sensorX = (sensorX + Simulation.WIDTH) % Simulation.WIDTH;
         sensorY = (sensorY + Simulation.HEIGHT) % Simulation.HEIGHT;
@@ -305,13 +290,33 @@ posY[index] = nest.getPosY() + r * Math.sin(angle);
 
 
     private void moveAnt(int index) {
+        double nextX = posX[index] + Math.cos(directions[index]) * speed;
+            double nextY = posY[index] + Math.sin(directions[index]) * speed;
 
-        posX[index] += Math.cos(directions[index]) * speed;
-        posY[index] += Math.sin(directions[index]) * speed;
+        // BEGRENZTE WELT: Reflektierende Wände (Bouncing-Logik)
+        if(Simulation.bordersActive) {
+            // Prüfung der horizontalen Grenzen (Linke/Rechte Wand)
+            if (nextX < 0 || nextX >= Simulation.WIDTH) {
+                // Reflektiere den Winkel an der vertikalen Achse (PI - Winkel)
+                directions[index] = Math.PI - directions[index]; 
+                // Clamp die Position, um ein "Feststecken" außerhalb zu verhindern
+                nextX = Math.max(0, Math.min(Simulation.WIDTH - 1, nextX));
+            }
 
-        posX[index] = (posX[index] + Simulation.WIDTH) % Simulation.WIDTH;
-        posY[index] = (posY[index] + Simulation.HEIGHT) % Simulation.HEIGHT;
+            // Prüfung der vertikalen Grenzen (Obere/Untere Wand)
+            if (nextY < 0 || nextY >= Simulation.HEIGHT) {
+                // Reflektiere den Winkel an der horizontalen Achse (-Winkel)
+                directions[index] = -directions[index]; 
+                nextY = Math.max(0, Math.min(Simulation.HEIGHT - 1, nextY));
+            }
 
+            posX[index] = nextX;
+            posY[index] = nextY;
+        } else { // UNBEGRENZTE WELT. 
+
+            posX[index] = (nextX + Simulation.WIDTH) % Simulation.WIDTH;
+            posY[index] = (nextY + Simulation.HEIGHT) % Simulation.HEIGHT;
+        }
         stepsSinceLastTarget[index]++;
 
     }
