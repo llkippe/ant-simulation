@@ -12,11 +12,14 @@ public class Pheromones {
 
     final static double LINEAR_THRESHHOLD = 0.05;
     final static double LINEAR_DROPOFF = 0.0001;
-    final static double EVAPORATION_RATE = 0.005;
-    final static double FOOD_DEPLETED_EVAPORTAION_RATE = 0.0025; // half of original evaporation rate
+    final static double EVAPORATION_RATE = 0.008;
+    final static double FOOD_DEPLETED_EVAPORTAION_RATE = 0.004; // half of original evaporation rate
 
     final static double DIFFUSION_RATE = 0.04;
     final static double FOOD_DEPLETED_DIFFUSION_RATE = 0.25;
+    final static int diffuseSteps = 3; // Diffusion happens every 3 steps, to save computation time
+
+
 
     final static double MAX_PHEROMONE_STRENGTH = 13.0;
 
@@ -28,9 +31,11 @@ public class Pheromones {
         foodDepletedGrid = new double[Simulation.WIDTH * Simulation.HEIGHT];
     }
 
-    void update() {
+    void update(int stepCount) {
         evaporate();
-        diffuse();
+        if(stepCount % diffuseSteps == 0) {
+            diffuse();
+        }
     }
 
     public void evaporate() {
@@ -103,9 +108,9 @@ public class Pheromones {
                     sD += foodDepletedGrid[nIdx];
                 }
             
-                newHome[i] = homeGrid[i] + (sH / 9.0 - homeGrid[i]) * DIFFUSION_RATE;
-                newFood[i] = foodGrid[i] + (sF / 9.0 - foodGrid[i]) * DIFFUSION_RATE;
-                newFoodDepleted[i] = foodDepletedGrid[i] + (sD / 9.0 - foodDepletedGrid[i]) * FOOD_DEPLETED_DIFFUSION_RATE;
+                newHome[i] = homeGrid[i] + (sH / 9.0 - homeGrid[i]) * DIFFUSION_RATE * diffuseSteps;
+                newFood[i] = foodGrid[i] + (sF / 9.0 - foodGrid[i]) * DIFFUSION_RATE * diffuseSteps;
+                newFoodDepleted[i] = foodDepletedGrid[i] + (sD / 9.0 - foodDepletedGrid[i]) * FOOD_DEPLETED_DIFFUSION_RATE * diffuseSteps;
             }
         }
 
@@ -163,9 +168,9 @@ private void updateSingleCell(int x, int y, double[] nextHome, double[] nextFood
     // Use the actual number of samples collected (to handle border cut-offs correctly)
     double div = (samples > 0) ? (double)samples : 1.0;
     
-    nextHome[i] = homeGrid[i] + (sumHome / div - homeGrid[i]) * DIFFUSION_RATE;
-    nextFood[i] = foodGrid[i] + (sumFood / div - foodGrid[i]) * DIFFUSION_RATE;
-    nextDepleted[i] = foodDepletedGrid[i] + (sumDepleted / div - foodDepletedGrid[i]) * FOOD_DEPLETED_DIFFUSION_RATE;
+    nextHome[i] = homeGrid[i] + (sumHome / div - homeGrid[i]) * DIFFUSION_RATE * diffuseSteps;
+    nextFood[i] = foodGrid[i] + (sumFood / div - foodGrid[i]) * DIFFUSION_RATE * diffuseSteps;
+    nextDepleted[i] = foodDepletedGrid[i] + (sumDepleted / div - foodDepletedGrid[i]) * FOOD_DEPLETED_DIFFUSION_RATE * diffuseSteps;
 }
 
    

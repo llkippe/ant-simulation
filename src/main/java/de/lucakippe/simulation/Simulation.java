@@ -4,9 +4,9 @@ package de.lucakippe.simulation;
 import java.util.Random;
 
 public class Simulation {
-    public final static int WIDTH = 700;
-    public final static int HEIGHT = 700;
-    final static int NUM_ANTS = 800;
+    public final static int WIDTH = 800;
+    public final static int HEIGHT = 800;
+    final static int NUM_ANTS = 1300;
     final static double PERCENT_SCOUT_ANTS = 0.1; 
     final static boolean bordersActive = true;
 
@@ -18,10 +18,10 @@ public class Simulation {
     private Nest nest;
 
 
-    public static final int MIN_DIST_TO_NEST = 170;
-    public static final int MIN_DIST_BETWEEN_FOODSOURCES = 100;
+    public static final int MIN_DIST_TO_NEST = 200;
+    public static final int MIN_DIST_BETWEEN_FOODSOURCES = 150;
     private static int foodSourceSize = 15;
-    private static int nestSize = 35;
+    private static int nestSize = 45;
     public int foodSourceCount;
     public int foodSpawnIntervall;
     private Food[] foodSources;
@@ -84,7 +84,7 @@ public class Simulation {
         stepCount++;
 
         ants.update();
-        pheromones.update();
+        pheromones.update(stepCount);
 
         if(stepCount % foodSpawnIntervall == 0) {
             replaceOldestFoodSource();

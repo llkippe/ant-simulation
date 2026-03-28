@@ -9,16 +9,16 @@ import java.util.concurrent.TimeUnit;
 public class App {
     public static void main(String[] args) {
        
-     runBatches();
+    // runBatches();
      
          
-     //runVis();
+     runVis();
         
     }
 
     public static void runVis() {
         int foodCount = 6;
-        int interval = 1500;
+        int interval = 3000;
         boolean antiPheromones = true;
 
         String timestamp = String.valueOf(System.currentTimeMillis());
@@ -26,7 +26,7 @@ public class App {
         System.out.println(runSeed);
         String baseDirName = timestamp + "_" + foodCount + "_" + interval + "_" + antiPheromones;
 
-        Simulation sim = new Simulation(true, antiPheromones, foodCount, interval, baseDirName, 0, runSeed);
+        Simulation sim = new Simulation(true, antiPheromones, foodCount, interval, baseDirName, 0, 1217530087);
         
         
        Renderer visualizer = new Renderer(sim); // Pass the simulation to the renderer

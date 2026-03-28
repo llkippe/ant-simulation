@@ -28,7 +28,7 @@ public class Ants {
     private double maxPheromoneDepositAmount = 0.8;
     private double maxPheromoneDepositAmountScoutOnFood = 5.5;
     private double[] currentPheromoneDepositAmount;
-    private double pheremonDepositDecayRate = 0.01;
+    private double pheremonDepositDecayRate = 0.008;
     private double foodDepletedWeight = 2; // based on research anti is double as strong
 
     private double sensorDistance = 25.0;

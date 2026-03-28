@@ -49,7 +49,7 @@ colors = {sid: cmap(i % 10) for i, sid in enumerate(source_ids)}
 #xticks = np.arange(0, max_step+100, 1000)
 
 # convergence daten 
-troughput_convergence = 0.2
+troughput_convergence = 0.25
 steps_for_convergence_avg = 200
 window_size_for_convergence_avg = int(steps_for_convergence_avg / df_settings['reportingInterval'].iloc[0])
 convergence_data_pairs = []
@@ -64,7 +64,8 @@ recovery_times = []  # Liste für Statistik: (time_delta)
 # Puffer und Bestätigungsfenster definieren
 puffer = 0.9  # 90% des alten Niveaus reichen als "recovered"
 min_stable_steps = 400 # fuer wie lange ist das niveu gehalten 
-steps_for_avg = 400 #
+steps_for_avg = 400 # wie viele schritte vor loeschung fuer zielwert berechnen
+look_ahead_for_dropoff = 1000 # wie viele schritte nach loeschen schauen, ob Einbruch kommt
 
 # ==========================================
 # GRAPH 1: SOURCE THROUGHPUT + SOURCE EVENTS (SEPARAT)
@@ -85,34 +86,56 @@ marker_y_start = (len(source_ids) - 1) * 1.5
 marker_spacing = 1.5   # Erhöht den Abstand, um Überlappung zu vermeiden
 
 
+required_points = min_stable_steps / df_settings['reportingInterval'].iloc[0]
+
 for d_step in deletion_steps:
-    # 1. Zielwert definieren (Durchschnitt vor der Löschung)
+    # 1. Zielwert: 90% des Niveaus vor der Löschung
     pre_data = global_throughput[(global_throughput.index >= d_step - steps_for_avg) & (global_throughput.index < d_step)]
-    
     if pre_data.empty: continue
     target_value = pre_data.mean() * puffer
     
-    # 2. Den "Tiefpunkt" abwarten
-    # Wir suchen erst ab dem Punkt, an dem der Durchsatz UNTER den Zielwert gefallen ist
-    post_deletion = global_throughput[global_throughput.index > d_step]
+
+    # 2. daten nach loeschung fuer 800 steps
+    immediate_post_deletion = global_throughput[(global_throughput.index > d_step) & 
+                                                (global_throughput.index <= d_step + look_ahead_for_dropoff)]
     
-    # Wir finden den ersten Schritt, an dem der Durchsatz wirklich eingebrochen ist
-    dropped_data = post_deletion[post_deletion < target_value]
-    if dropped_data.empty: continue
+
+    
+    if len(immediate_post_deletion) < required_points:
+        continue
+
+
+    # Check: Gab es überhaupt einen signifikanten Einbruch relativ nah am Löschzeitpunkt?
+    dropped_data = immediate_post_deletion[immediate_post_deletion < target_value]
+
+
+    
+    if dropped_data.empty:
+        # FALL A: Perfekte Resilienz. System hat den Verlust sofort kompensiert.
+        # Wir markieren den Zeitpunkt der Löschung als 'Resilience reached'.
+        recovery_step = d_step
+        recovery_events.append((recovery_step, global_throughput.loc[d_step], d_step))
+        continue
+
+    # FALL B: System ist eingebrochen. Wir suchen den ersten Punkt der stabilen Erholung.
     first_drop_step = dropped_data.index.min()
-    
-    # 3. Recovery-Suche erst NACH dem Einbruch starten
+    post_deletion = global_throughput[global_throughput.index > d_step]
     actual_recovery_search = post_deletion[post_deletion.index > first_drop_step]
     
     for step, value in actual_recovery_search.items():
         if value >= target_value:
-            # Stabilitäts-Check (100 Schritte)
-            future = global_throughput[(global_throughput.index >= step) & (global_throughput.index <= step + min_stable_steps)]
-            if not future.empty and future.min() >= target_value:
-                recovery_step = step
-                recovery_times.append(recovery_step - d_step)
-                recovery_events.append((recovery_step, value, d_step))
-                break
+            # Stabilitäts-Check: Ist das MINIMUM im Fenster >= target_value?
+            future_window = global_throughput[(global_throughput.index >= step) & 
+                                              (global_throughput.index <= step + min_stable_steps)]
+        
+            
+            # Wichtig: Das Fenster muss groß genug sein (nicht am Ende der Simulation hängen bleiben)
+            if len(future_window) >= (min_stable_steps / df_settings['reportingInterval'].iloc[0]):
+                if future_window.mean() >= target_value:
+                    recovery_step = step
+                    recovery_times.append(recovery_step - d_step)
+                    recovery_events.append((recovery_step, value, d_step))
+                    break
 
 
 
@@ -261,6 +284,7 @@ fig1.tight_layout()
 fig1.savefig(out_source_png, bbox_inches='tight')
 plt.close(fig1)
 
+
 # ==========================================
 # GRAPH 2: GLOBAL EFFICIENCY & DISAPPOINTMENT
 # ==========================================
@@ -286,6 +310,8 @@ ax3.tick_params(axis='y', labelcolor='red')
 fig2.tight_layout()
 fig2.savefig(out_global_png, bbox_inches='tight')
 plt.close(fig2)
+
+
 
 
 # ==========================================
