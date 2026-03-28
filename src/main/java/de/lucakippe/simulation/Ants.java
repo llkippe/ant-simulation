@@ -205,7 +205,6 @@ posY[index] = nest.getPosY() + r * Math.sin(angle);
         if (states[index] == AntState.SEARCHING_FOR_FOOD && isScout[index] == false) {
             
             
-
             // ameise ist aktuell aufm starken pfad 
             if(currentPheromoneIntensity >= STRONG_PATH_THRESHOLD) {
                 if(!isFollowingStrongPath[index]){
@@ -275,9 +274,19 @@ posY[index] = nest.getPosY() + r * Math.sin(angle);
         double sensorX = (posX[index] + Math.cos(sensorAngle) * sensorDistance);
         double sensorY = (posY[index] + Math.sin(sensorAngle) * sensorDistance);
 
+        if(Simulation.bordersActive) {
+            // If borders are active and the sensor is outside, return the edge position
+            if (Simulation.outsideOfBorder(sensorX, sensorY)) {
+                sensorX = Math.max(0, Math.min(Simulation.WIDTH - 1, sensorX));
+                sensorY = Math.max(0, Math.min(Simulation.HEIGHT - 1, sensorY));
+                return new double[] { sensorX, sensorY };
+            }
+        }else {
+            sensorX = (sensorX + Simulation.WIDTH) % Simulation.WIDTH;
+            sensorY = (sensorY + Simulation.HEIGHT) % Simulation.HEIGHT;
+        }
 
-        sensorX = (sensorX + Simulation.WIDTH) % Simulation.WIDTH;
-        sensorY = (sensorY + Simulation.HEIGHT) % Simulation.HEIGHT;
+   
 
         return new double[] { sensorX, sensorY };
     }
