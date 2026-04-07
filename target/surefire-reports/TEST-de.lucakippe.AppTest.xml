@@ -12,7 +12,7 @@
     <property name="sun.java.launcher" value="SUN_STANDARD"/>
     <property name="user.country" value="US"/>
     <property name="sun.boot.library.path" value="/usr/lib/jvm/java-21-openjdk-amd64/lib"/>
-    <property name="sun.java.command" value="/home/lucakippe/dev/ant-simulation/target/surefire/surefirebooter13986554670005666507.jar /home/lucakippe/dev/ant-simulation/target/surefire 2026-03-22T19-08-37_452-jvmRun1 surefire3583617182647737975tmp surefire_03625947584832178483tmp"/>
+    <property name="sun.java.command" value="/home/lucakippe/dev/ant-simulation/target/surefire/surefirebooter9808198675422205185.jar /home/lucakippe/dev/ant-simulation/target/surefire 2026-03-28T19-18-48_997-jvmRun1 surefire6495425339975566648tmp surefire_011093734075243808914tmp"/>
     <property name="jdk.debug" value="release"/>
     <property name="surefire.test.class.path" value="/home/lucakippe/dev/ant-simulation/target/test-classes:/home/lucakippe/dev/ant-simulation/target/classes:/home/lucakippe/.m2/repository/org/processing/core/4.5.2/core-4.5.2.jar:/home/lucakippe/.m2/repository/org/jetbrains/kotlin/kotlin-stdlib/2.2.20/kotlin-stdlib-2.2.20.jar:/home/lucakippe/.m2/repository/org/jetbrains/annotations/13.0/annotations-13.0.jar:/home/lucakippe/.m2/repository/org/jogamp/jogl/jogl-all-main/2.6.0/jogl-all-main-2.6.0.jar:/home/lucakippe/.m2/repository/org/jogamp/jogl/jogl-all/2.6.0/jogl-all-2.6.0.jar:/home/lucakippe/.m2/repository/org/jogamp/jogl/jogl-all/2.6.0/jogl-all-2.6.0-natives-android-aarch64.jar:/home/lucakippe/.m2/repository/org/jogamp/jogl/jogl-all/2.6.0/jogl-all-2.6.0-natives-android-x86_64.jar:/home/lucakippe/.m2/repository/org/jogamp/jogl/jogl-all/2.6.0/jogl-all-2.6.0-natives-freebsd-amd64.jar:/home/lucakippe/.m2/repository/org/jogamp/jogl/jogl-all/2.6.0/jogl-all-2.6.0-natives-linux-amd64.jar:/home/lucakippe/.m2/repository/org/jogamp/jogl/jogl-all/2.6.0/jogl-all-2.6.0-natives-linux-armv6hf.jar:/home/lucakippe/.m2/repository/org/jogamp/jogl/jogl-all/2.6.0/jogl-all-2.6.0-natives-linux-aarch64.jar:/home/lucakippe/.m2/repository/org/jogamp/jogl/jogl-all/2.6.0/jogl-all-2.6.0-natives-macosx-universal.jar:/home/lucakippe/.m2/repository/org/jogamp/jogl/jogl-all/2.6.0/jogl-all-2.6.0-natives-windows-amd64.jar:/home/lucakippe/.m2/repository/org/jogamp/gluegen/gluegen-rt-main/2.6.0/gluegen-rt-main-2.6.0.jar:/home/lucakippe/.m2/repository/org/jogamp/gluegen/gluegen-rt/2.6.0/gluegen-rt-2.6.0.jar:/home/lucakippe/.m2/repository/org/jogamp/gluegen/gluegen-rt/2.6.0/gluegen-rt-2.6.0-natives-android-aarch64.jar:/home/lucakippe/.m2/repository/org/jogamp/gluegen/gluegen-rt/2.6.0/gluegen-rt-2.6.0-natives-android-x86_64.jar:/home/lucakippe/.m2/repository/org/jogamp/gluegen/gluegen-rt/2.6.0/gluegen-rt-2.6.0-natives-freebsd-amd64.jar:/home/lucakippe/.m2/repository/org/jogamp/gluegen/gluegen-rt/2.6.0/gluegen-rt-2.6.0-natives-linux-amd64.jar:/home/lucakippe/.m2/repository/org/jogamp/gluegen/gluegen-rt/2.6.0/gluegen-rt-2.6.0-natives-linux-armv6hf.jar:/home/lucakippe/.m2/repository/org/jogamp/gluegen/gluegen-rt/2.6.0/gluegen-rt-2.6.0-natives-linux-aarch64.jar:/home/lucakippe/.m2/repository/org/jogamp/gluegen/gluegen-rt/2.6.0/gluegen-rt-2.6.0-natives-macosx-universal.jar:/home/lucakippe/.m2/repository/org/jogamp/gluegen/gluegen-rt/2.6.0/gluegen-rt-2.6.0-natives-windows-amd64.jar:/home/lucakippe/.m2/repository/antlr/antlr/2.7.7/antlr-2.7.7.jar:/home/lucakippe/.m2/repository/junit/junit/4.13.2/junit-4.13.2.jar:/home/lucakippe/.m2/repository/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar:"/>
     <property name="sun.cpu.endian" value="little"/>
@@ -27,7 +27,7 @@
     <property name="line.separator" value="&#10;"/>
     <property name="java.specification.name" value="Java Platform API Specification"/>
     <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
-    <property name="surefire.real.class.path" value="/home/lucakippe/dev/ant-simulation/target/surefire/surefirebooter13986554670005666507.jar"/>
+    <property name="surefire.real.class.path" value="/home/lucakippe/dev/ant-simulation/target/surefire/surefirebooter9808198675422205185.jar"/>
     <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
     <property name="java.runtime.version" value="21.0.10+7-Ubuntu-124.04"/>
     <property name="user.name" value="lucakippe"/>
@@ -53,5 +53,5 @@
     <property name="sun.io.unicode.encoding" value="UnicodeLittle"/>
     <property name="java.class.version" value="65.0"/>
   </properties>
-  <testcase name="shouldAnswerWithTrue" classname="de.lucakippe.AppTest" time="0.009"/>
+  <testcase name="shouldAnswerWithTrue" classname="de.lucakippe.AppTest" time="0.004"/>
 </testsuite>

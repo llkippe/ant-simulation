@@ -15,7 +15,7 @@ public class Ants {
     private boolean[] isScout;
 
     private boolean[] isFollowingStrongPath;
-    private final double STRONG_PATH_THRESHOLD = 3.5;
+    private final double STRONG_PATH_THRESHOLD = 4;
     private final int CONFUSED_STEP_INTERVAL = 55;
     private final double PERCENTAGE_TRIGGER_END_OF_TRAIL = 0.15;
     private final int[] stepsSinceLeavingStrongPath;
@@ -176,6 +176,11 @@ posY[index] = nest.getPosY() + r * Math.sin(angle);
 
 
     private void steerAnt(int index) {
+        if(stepsSinceLastTarget[index] == 0) {
+            omnidirectionalSteerAnt(index);
+            return;
+        } 
+
         double[] leftPos = getSensorPosition(index, -sensorOffsetAngle, sensorDistance);
         double[] centerPos = getSensorPosition(index, 0, sensorDistance);
         double[] rightPos = getSensorPosition(index, sensorOffsetAngle, sensorDistance);
@@ -199,6 +204,23 @@ posY[index] = nest.getPosY() + r * Math.sin(angle);
 
         double randomWiggle = (random.nextDouble() - 0.5) * wanderStrength;
         directions[index] += steeringDirection + randomWiggle;
+    }
+
+    public void omnidirectionalSteerAnt(int index) {
+        double bestIntensity = -1;
+        double bestAngle = 0;
+
+        for(int sensor = 0; sensor < 16; sensor++) {
+            double angleOffset = (sensor / 16.0) * 2 * Math.PI;
+            double[] sensorPos = getSensorPosition(index, angleOffset, nest.getRadius() * 2);
+            double intensity = getAverageIntensity3x3(sensorPos[0], sensorPos[1], states[index], isScout[index]);
+
+            if(intensity > bestIntensity) {
+                bestIntensity = intensity;
+                bestAngle = angleOffset;
+            } 
+        }
+        directions[index] += bestAngle;
     }
 
     private void detectDisappointment(int index, double currentPheromoneIntensity) {

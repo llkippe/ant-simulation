@@ -1,42 +1,31 @@
 
-einen hyperparameter festhalten den andern veraendern
--> mehrere mit selben settings um avg zu bekommen. davor ueberlegen wie man die daten dann avg macht. -> automatisch
-
-
-data/1774545694916_3_1500_true/run_2/01_source_throughput.png
-- recovery rate -> wieso wird 1500 erst bei 7000 erreicht muss es genau 90 % erreichen. iwas ist falsch
-
--> recovery rate berehcnung neu was passeirt mit anderen meta
-
-
-
-- nochmal einzelne runs angucken. schauen wo sich duetlich sichbare unterschiede ergeben?
-- nochmal von davor angucken wo es dort eindeutiger war
-- mit N=2 schauen ob alles soweit funktioniert
-
-
-- einmal mit boundaries testen falls das besser ist
-- einaml ohne scouts testen ob das besser ist
-
-
 
 - erfolgsrate evtl doch mit einspeisen in rate? bzw zumindest daruaf achten
 
-
-- scouts senden kein to home pheromone aus?
-- feste grenzen welt is auch begrenzt
-
-
-
-- middendorf ueber richtigkeit der metriken rueberschauen lassen
-- middendorf grafiken deutsch englisch, allgemein sind begriffe verstaendlich
-- grafiken interpretierbar?
+- wie wirkt anti pheromone. test mit einem futter quelle. 
+- einige ameisen gehen zurueck.
+- verbreiten anti pheromone dadruch streuen ameisen und exploren mehr
+-> anhand von graphen zeigen hoeehre exploration rate.
+- laengere zeiten wo dissapointment rate hoch ist.
+anhand von 2 simulationen mit gleichem seed
 
 
+- ich habe omni directional sensing bei anfang eingbaut. aktuell gar keine randomness dabei.
+- acutally die start position is random. aber trotzdem relativ stark auf nur aller staerksten pfad. weis nicht ob das so gut ist
+- das ganze sollte nur beim nest passierne nicht bei den futterquellen !!!
 
-- zufalls futterqullen name
 
 
+
+MIDDENDORF
+
+- ueber richtigkeit der metriken rueberschauen lassen avg vom avg, 
+- seed randomness
+- nest als reset hub fuer ameisen 
+- analyse zeigen und fragen was er davon haelt
+- erfolgsrate doch einspeisen in werte. wenn ja wie, wenn nein wei behandlen
+- wie sind grafiken beschriftung, text, aufbau
+- die grenzen sind nicht passierbar
 
 
 

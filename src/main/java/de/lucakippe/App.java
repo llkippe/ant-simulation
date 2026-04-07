@@ -9,16 +9,16 @@ import java.util.concurrent.TimeUnit;
 public class App {
     public static void main(String[] args) {
        
-    // runBatches();
+    runBatches();
      
          
-     runVis();
+    // runVis();
         
     }
 
     public static void runVis() {
-        int foodCount = 6;
-        int interval = 3000;
+        int foodCount = 5;
+        int interval = 1500;
         boolean antiPheromones = true;
 
         String timestamp = String.valueOf(System.currentTimeMillis());
@@ -26,7 +26,7 @@ public class App {
         System.out.println(runSeed);
         String baseDirName = timestamp + "_" + foodCount + "_" + interval + "_" + antiPheromones;
 
-        Simulation sim = new Simulation(true, antiPheromones, foodCount, interval, baseDirName, 0, 1217530087);
+        Simulation sim = new Simulation(true, antiPheromones, foodCount, interval, baseDirName, 0, runSeed);
         
         
        Renderer visualizer = new Renderer(sim); // Pass the simulation to the renderer
@@ -34,14 +34,14 @@ public class App {
     }
 
    public static void runBatches() {
-        int N = 10; 
+        int N = 30; 
         // deutlicher unterschied beobachten koennen. 
         // 6, 1500 fairness und global avg, recovery zeiten, pfad recovery zeiten
 
+        //{6, 1500} , {3, 3000}
 
-
-
-        int[][] configs = { {3, 1500}, {3, 3000},{6,1500}, {6,3000}}; //{6, 1500} , {3, 3000}
+         
+        int[][] configs = {{3, 1500},{6,1500}, {9,1500},  {6, 3000} , {6, 1000}}; 
         boolean[] antiPheromones = {true, false};
 
         ExecutorService executor = Executors.newFixedThreadPool(4);

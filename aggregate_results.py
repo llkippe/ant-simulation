@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import argparse
+import subprocess
 
 # Argument parsing
 parser = argparse.ArgumentParser(description='Aggregate simulation results across runs.')
@@ -105,11 +106,26 @@ for config_folder in config_folders:
 
         # -- Performance Metriken pro Run sammeln --
         performance_summary_path = os.path.join(run_path, "performance_summary.csv")
+        
+        # Falls Datei fehlt, build_graphs.py für diesen Run ausführen
+        if not os.path.exists(performance_summary_path):
+            print(f" -> performance_summary.csv fehlt in {run_folder}. Führe build_graphs.py aus...")
+            try:
+                # Ruft python3 build_graphs.py <run_path> auf
+                subprocess.run(["python3", "build_graphs.py", run_path], check=True)
+            except subprocess.CalledProcessError as e:
+                print(f" -> Fehler beim Ausführen von build_graphs.py für {run_folder}: {e}")
+            except FileNotFoundError:
+                print(" -> Fehler: Die Datei 'build_graphs.py' wurde im aktuellen Verzeichnis nicht gefunden.")
+
+        # Überprüfen, ob sie JETZT existiert (falls das Skript erfolgreich war)
         if os.path.exists(performance_summary_path):
             df_ps = pd.read_csv(performance_summary_path)
             if 'Run_ID' not in df_ps.columns:
                 df_ps['Run_ID'] = run_folder
             summary_dfs.append(df_ps)
+        else:
+            print(f" -> WARNUNG: {performance_summary_path} konnte nicht gefunden/erstellt werden.")
             
 
     # Meta-Throughput: Durchschnitt + Standardabweichung (ohne null-gefüllte Steps)
