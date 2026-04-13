@@ -13,11 +13,11 @@ public class Ants {
     private int[] carryingFoodFromSourceId; // -1 if not carrying food, otherwise the id of the food source the food is from
     private int[] stepsSinceLastTarget;
     private boolean[] isScout;
-
+                                                                         
     private boolean[] isFollowingStrongPath;
-    private final double STRONG_PATH_THRESHOLD = 4;
-    private final int CONFUSED_STEP_INTERVAL = 55;
-    private final double PERCENTAGE_TRIGGER_END_OF_TRAIL = 0.15;
+    public final double STRONG_PATH_THRESHOLD = 4;
+    private final int CONFUSED_STEP_INTERVAL = 90;
+    private final double PERCENTAGE_TRIGGER_END_OF_TRAIL = 0.4;
     private final int[] stepsSinceLeavingStrongPath;
 
 
@@ -25,14 +25,15 @@ public class Ants {
     private double wanderStrength = 0.3; // in radians (random value between -wanderStrength/2 and +wanderStrength/2)
     private double steeringStrength = 0.4; // in radians;
 
-    private double maxPheromoneDepositAmount = 0.8;
-    private double maxPheromoneDepositAmountScoutOnFood = 5.5;
+    private double maxPheromoneDepositAmount = 1;
+    private double maxPheromoneDepositAmountDepleted = 2;
+    private double maxPheromoneDepositAmountScoutOnFood = 6;
     private double[] currentPheromoneDepositAmount;
-    private double pheremonDepositDecayRate = 0.008;
-    private double foodDepletedWeight = 2; // based on research anti is double as strong
+    private double pheremonDepositDecayRate = 0.005;
+    private double foodDepletedWeight = 1; // based on research anti is double as strong not sure about this
 
-    private double sensorDistance = 25.0;
-    private double sensorOffsetAngle = Math.PI / 5; // 36 grad
+    private double sensorDistance = 15.0;
+    private double sensorOffsetAngle = Math.PI / 5; // 36 
     
     private Nest nest;
     private MetricsManager metricsManager;
@@ -176,7 +177,7 @@ posY[index] = nest.getPosY() + r * Math.sin(angle);
 
 
     private void steerAnt(int index) {
-        if(stepsSinceLastTarget[index] == 0) {
+        if(stepsSinceLastTarget[index] == 0 && !isScout[index] && states[index] == AntState.SEARCHING_FOR_FOOD) {
             omnidirectionalSteerAnt(index);
             return;
         } 
@@ -225,8 +226,7 @@ posY[index] = nest.getPosY() + r * Math.sin(angle);
 
     private void detectDisappointment(int index, double currentPheromoneIntensity) {
         if (states[index] == AntState.SEARCHING_FOR_FOOD && isScout[index] == false) {
-            
-            
+        
             // ameise ist aktuell aufm starken pfad 
             if(currentPheromoneIntensity >= STRONG_PATH_THRESHOLD) {
                 if(!isFollowingStrongPath[index]){
@@ -237,21 +237,30 @@ posY[index] = nest.getPosY() + r * Math.sin(angle);
             }
 
             // die ameise war auf starken pfad 
-            else if(isFollowingStrongPath[index] && currentPheromoneIntensity < STRONG_PATH_THRESHOLD * (1 - PERCENTAGE_TRIGGER_END_OF_TRAIL)) {
-                stepsSinceLeavingStrongPath[index]++;
+            else if(isFollowingStrongPath[index]) {
+                double lostPathThreshold = (STRONG_PATH_THRESHOLD * (1 - PERCENTAGE_TRIGGER_END_OF_TRAIL));
 
-                // am ende des such intervals nach ende vom trail
-                if(stepsSinceLeavingStrongPath[index] > CONFUSED_STEP_INTERVAL) {
-                    if(antiPheromoneActive) {
-                        states[index] = AntState.DISAPPOINTED_RETURNING_HOME;
-                        directions[index] += Math.PI; // turn around
-                        currentPheromoneDepositAmount[index] = maxPheromoneDepositAmount * 3;
+                if(currentPheromoneIntensity < lostPathThreshold) {
+                    stepsSinceLeavingStrongPath[index]++;
+
+                    // am ende des such intervals nach ende vom trail
+                    if(stepsSinceLeavingStrongPath[index] > CONFUSED_STEP_INTERVAL) {
+                        if(antiPheromoneActive) {
+                            states[index] = AntState.DISAPPOINTED_RETURNING_HOME;
+                            directions[index] += Math.PI; // turn around
+                            currentPheromoneDepositAmount[index] = maxPheromoneDepositAmountDepleted;
+                        }
+                        isFollowingStrongPath[index] = false;
+                        stepsSinceLeavingStrongPath[index] = 0;
+                        metricsManager.reportAntDissapointed();
+                        metricsManager.reportExploitationEnd();
                     }
-                    isFollowingStrongPath[index] = false;
-                    stepsSinceLeavingStrongPath[index] = 0;
-                    metricsManager.reportAntDissapointed();
-                    metricsManager.reportExploitationEnd();
                 }
+                // Das Signal ist unter STRONG PATH THRESHOLD, aber immer noch über lostPathThreshhold!
+                // Die Ameise ist noch gut auf der Spur, der Timer MUSS resettet werden.
+                else {
+                    stepsSinceLeavingStrongPath[index] = 0;
+                }   
             }
         }
     }

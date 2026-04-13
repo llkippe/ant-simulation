@@ -12,8 +12,8 @@ public class Pheromones {
 
     final static double LINEAR_THRESHHOLD = 0.05;
     final static double LINEAR_DROPOFF = 0.0001;
-    final static double EVAPORATION_RATE = 0.005;
-    final static double FOOD_DEPLETED_EVAPORTAION_RATE = 0.0025; // half of original evaporation rate
+    final static double EVAPORATION_RATE = 0.004;
+    final static double FOOD_DEPLETED_EVAPORTAION_RATE = 0.004; // half of original evaporation rate
 
     final static double DIFFUSION_RATE = 0.04;
     final static double FOOD_DEPLETED_DIFFUSION_RATE = 0.25;
