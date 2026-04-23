@@ -1,45 +1,23 @@
 
 
+
+
+
 - erfolgsrate evtl doch mit einspeisen in rate? bzw zumindest daruaf achten
-
-- wie wirkt anti pheromone. test mit einem futter quelle. 
-- einige ameisen gehen zurueck.
-- verbreiten anti pheromone dadruch streuen ameisen und exploren mehr
--> anhand von graphen zeigen hoeehre exploration rate.
-- laengere zeiten wo dissapointment rate hoch ist.
-anhand von 2 simulationen mit gleichem seed
-
-
-- ich habe omni directional sensing bei anfang eingbaut. aktuell gar keine randomness dabei.
-- acutally die start position is random. aber trotzdem relativ stark auf nur aller staerksten pfad. weis nicht ob das so gut ist
-- das ganze sollte nur beim nest passierne nicht bei den futterquellen !!!
-
-
 
 
 MIDDENDORF
-
-- ueber richtigkeit der metriken rueberschauen lassen avg vom avg, 
-- seed randomness
-- nest als reset hub fuer ameisen 
-- analyse zeigen und fragen was er davon haelt
 - erfolgsrate doch einspeisen in werte. wenn ja wie, wenn nein wei behandlen
-- wie sind grafiken beschriftung, text, aufbau
-- die grenzen sind nicht passierbar
-- was fuer werte fuer futterquellen, intervalle soll ich nehmen fuer testlaeufe. 
-- was fuer eine sample size ist gut?
-
-- gliederung ziegen
-
-
--> einfuerhung von obstacles? noch bessere ergebnisse? das als variavle ergaeznen - als ausblick
- 
 
 
 
 
 
 
+
+
+
+troughput_convergence  rihctig in graphen?
 
 
 

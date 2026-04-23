@@ -16,7 +16,7 @@ public class Ants {
                                                                          
     private boolean[] isFollowingStrongPath;
     public final double STRONG_PATH_THRESHOLD = 4;
-    private final int CONFUSED_STEP_INTERVAL = 90;
+    private final int CONFUSED_STEP_INTERVAL = 75;
     private final double PERCENTAGE_TRIGGER_END_OF_TRAIL = 0.4;
     private final int[] stepsSinceLeavingStrongPath;
 
@@ -331,7 +331,7 @@ posY[index] = nest.getPosY() + r * Math.sin(angle);
 
     private void moveAnt(int index) {
         double nextX = posX[index] + Math.cos(directions[index]) * speed;
-            double nextY = posY[index] + Math.sin(directions[index]) * speed;
+        double nextY = posY[index] + Math.sin(directions[index]) * speed;
 
         // BEGRENZTE WELT: Reflektierende Wände (Bouncing-Logik)
         if(Simulation.bordersActive) {

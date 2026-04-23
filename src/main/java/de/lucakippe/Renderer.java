@@ -49,11 +49,11 @@ public class Renderer extends PApplet {
 
             int r = 0, g = 0, b = 0;
 
-            if(food > 4)
+            //if(food > 4)
              
             r = (int) Math.min(255, food * 255); 
             //if(food > 0) r = 255;
-            if(home > 4)
+          //  if(home > 4)
             b = (int) Math.min(255, home * 255);
             //if (home > 0) b = 255;
             

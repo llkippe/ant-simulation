@@ -49,7 +49,7 @@ colors = {sid: cmap(i % 10) for i, sid in enumerate(source_ids)}
 #xticks = np.arange(0, max_step+100, 1000)
 
 # convergence daten 
-troughput_convergence = 0.25
+troughput_convergence = 0.35
 steps_for_convergence_avg = 200
 window_size_for_convergence_avg = int(steps_for_convergence_avg / df_settings['reportingInterval'].iloc[0])
 convergence_data_pairs = []

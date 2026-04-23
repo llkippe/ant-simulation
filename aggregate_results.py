@@ -128,6 +128,13 @@ for config_folder in config_folders:
             print(f" -> WARNUNG: {performance_summary_path} konnte nicht gefunden/erstellt werden.")
             
 
+    # Sammle alle Deletions-Steps aus allen Runs
+    all_deletion_steps = []
+    if all_source_metrics:
+        for df_sm in all_source_metrics:
+            deletion_steps = df_sm[df_sm['deletion_step'] != -1]['deletion_step'].unique()
+            all_deletion_steps.extend(deletion_steps)
+
     # Meta-Throughput: Durchschnitt + Standardabweichung (ohne null-gefüllte Steps)
     if all_run_throughputs:
         tp_df = pd.concat(all_run_throughputs, axis=1)
@@ -187,6 +194,19 @@ for config_folder in config_folders:
 
         ax1.legend(loc='upper left')
         ax1.grid(True, linestyle='--', alpha=0.5)
+
+        # Visualisiere Wiederauftauchen von Futterquellen
+        first_respawn = True
+        for del_step in sorted(set(all_deletion_steps)):
+            ax1.axvline(
+                x=del_step,
+                color='orange',
+                linestyle=':',
+                alpha=1,
+                linewidth=2,
+                label='Futterquelle wieder erschienen' if first_respawn else '_nolegend_'
+            )
+            first_respawn = False
 
         # Exploitation Rate auf twin axis
         if all_ee_ratios:
@@ -267,6 +287,24 @@ for config_folder in config_folders:
         ax3.set_ylabel('Enttäuschungsrate', color='red', fontsize=12)
         ax3.tick_params(axis='y', labelcolor='red')
 
+        # Visualisiere Wiederauftauchen von Futterquellen
+        first_respawn = True
+        for del_step in sorted(set(all_deletion_steps)):
+            ax2.axvline(
+                x=del_step,
+                color='orange',
+                linestyle=':',
+                alpha=1,
+                linewidth=2,
+                label='Futterquelle wieder erschienen' if first_respawn else '_nolegend_'
+            )
+            first_respawn = False
+
+        # Combine legends from all axes
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        lines3, labels3 = ax3.get_legend_handles_labels()
+        ax2.legend(lines2 + lines3, labels2 + labels3, loc='upper left')
+
         plt.title(f'Pfadeffizienz und Enttäuschungsrate über {len(all_global_metrics)} Läufe\n({config_folder})', fontsize=14)
         out_global_plot = os.path.join(config_path, "05_meta_global_metrics.png")
         plt.savefig(out_global_plot, bbox_inches='tight', dpi=150)
@@ -278,7 +316,54 @@ for config_folder in config_folders:
         merged_summary = pd.concat(summary_dfs, ignore_index=True)
 
         # Run-Level-Metriken aggregieren (je Run als unabhängige Stichprobe)
-        perf_agg = merged_summary.groupby('Metric')['Mean'].agg(['mean', 'std', 'count']).reset_index()
+        # Für Convergence_Steps und Recovery_Steps: nutze Median der Runs (wie im Boxplot)
+        # Für andere Metriken: nutze Mean
+        perf_rows = []
+        
+        for metric in merged_summary['Metric'].unique():
+            metric_data = merged_summary[merged_summary['Metric'] == metric]
+            
+            # Raten-Metriken: Mean und Std verwenden
+            if metric in ['Convergence_Rate_Pct', 'Recovery_Rate_Pct']:
+                values = metric_data['Mean'].dropna().astype(float)
+                if len(values) > 0:
+                    perf_rows.append({
+                        'Metric': metric,
+                        'Mean': values.mean(),
+                        'Std': values.std(),
+                        'Median': np.nan,
+                        'Min': np.nan,
+                        'Max': np.nan,
+                        'n_runs': len(values)
+                    })
+            # Convergence_Steps und Recovery_Steps: nutze Median (wie in boxplot)
+            elif metric in ['Convergence_Steps_From_Run_Median', 'Recovery_Steps_From_Run_Median']:
+                values = metric_data['Median'].dropna().astype(float)
+                if len(values) > 0:
+                    perf_rows.append({
+                        'Metric': metric,
+                        'Mean': values.mean(),
+                        'Std': values.std(),
+                        'Median': values.median(),
+                        'Min': values.min(),
+                        'Max': values.max(),
+                        'n_runs': len(values)
+                    })
+            # Alle anderen Metriken: nutze Mean
+            else:
+                values = metric_data['Mean'].dropna().astype(float)
+                if len(values) > 0:
+                    perf_rows.append({
+                        'Metric': metric,
+                        'Mean': values.mean(),
+                        'Std': values.std(),
+                        'Median': values.median(),
+                        'Min': values.min(),
+                        'Max': values.max(),
+                        'n_runs': len(values)
+                    })
+        
+        perf_agg = pd.DataFrame(perf_rows)
 
         out_perf_summary = os.path.join(config_path, 'meta_performance_summary.csv')
         perf_agg.to_csv(out_perf_summary, index=False)
@@ -318,14 +403,15 @@ for config_folder in config_folders:
         ax_c.scatter(np.random.normal(1, 0.08, size=len(conv_values)), conv_values, color='orange', alpha=0.9, s=30)
         c_mean = np.nanmean(conv_values) if len(conv_values)>0 else np.nan
         c_med = np.nanmedian(conv_values) if len(conv_values)>0 else np.nan
-        ax_c.set_title('Schritte bis Durchsatz > 1 erreicht (Median)', fontsize=12)
+        ax_c.set_title('Konvergenzzeit (Median)', fontsize=12)
         ax_c.set_ylabel('Schritte nach Erstellung', fontsize=10)
 
-        if 'Convergence_Rate_Pct' in merged_summary['Metric'].values:
-            conv_rate_val = merged_summary.loc[merged_summary['Metric'] == 'Convergence_Rate_Pct', 'Mean'].dropna().astype(float)
-            if len(conv_rate_val) > 0:
-                x_ax_lbl = ax_c.set_xticklabels([f'Erfolgsrate: {np.nanmean(conv_rate_val):.1f}%'])
-                plt.setp(x_ax_lbl, color='red', fontweight='bold', fontsize=11)
+        #if 'Convergence_Rate_Pct' in merged_summary['Metric'].values:
+        #    conv_rate_val = merged_summary.loc[merged_summary['Metric'] == 'Convergence_Rate_Pct', 'Mean'].dropna().astype(float)
+        #    if len(conv_rate_val) > 0:
+        #        x_ax_lbl = ax_c.set_xticklabels([f'Erfolgsrate: {np.nanmean(conv_rate_val):.1f}%'])
+        #        plt.setp(x_ax_lbl, color='red', fontweight='bold', fontsize=11)
+        ax_c.set_xticklabels([])  # Keine x-Achsen-Beschriftung
         ax_c.grid(axis='y', linestyle='--', alpha=0.3)
 
         # Recovery Steps
@@ -337,11 +423,12 @@ for config_folder in config_folders:
         ax_r.set_title('Erholungszeit (Median)', fontsize=12)
         ax_r.set_ylabel('Schritte', fontsize=10)
        
-        if 'Recovery_Rate_Pct' in merged_summary['Metric'].values:
-            recovery_rate_val = merged_summary.loc[merged_summary['Metric'] == 'Recovery_Rate_Pct', 'Mean'].dropna().astype(float)
-            if len(recovery_rate_val) > 0:
-                x_ax_lbl = ax_r.set_xticklabels([f'Erholungsrate: {np.nanmean(recovery_rate_val):.1f}%'])
-                plt.setp(x_ax_lbl, color='red', fontweight='bold', fontsize=11)
+        #if 'Recovery_Rate_Pct' in merged_summary['Metric'].values:
+        #    recovery_rate_val = merged_summary.loc[merged_summary['Metric'] == 'Recovery_Rate_Pct', 'Mean'].dropna().astype(float)
+        #    if len(recovery_rate_val) > 0:
+        #        x_ax_lbl = ax_r.set_xticklabels([f'Erholungsrate: {np.nanmean(recovery_rate_val):.1f}%'])
+        #        plt.setp(x_ax_lbl, color='red', fontweight='bold', fontsize=11)
+        ax_r.set_xticklabels([])  # Keine x-Achsen-Beschriftung
         ax_r.grid(axis='y', linestyle='--', alpha=0.3)
 
         # Global Throughput
@@ -372,7 +459,7 @@ for config_folder in config_folders:
             ax_eff.axis('off')
 
         # Jain's Fairness
-        jain_values = merged_summary.loc[merged_summary['Metric'] == 'Jains_Fairness_Index', 'Mean'].dropna().astype(float)
+        jain_values = merged_summary.loc[merged_summary['Metric'] == 'Ø Jains_Fairness_Index', 'Mean'].dropna().astype(float)
         if len(jain_values) > 0:
             ax_j.boxplot(jain_values, notch=True, patch_artist=True, boxprops=dict(facecolor='gold', alpha=0.5))
             ax_j.scatter(np.random.normal(1, 0.08, size=len(jain_values)), jain_values, color='darkgoldenrod', alpha=0.7, s=30)

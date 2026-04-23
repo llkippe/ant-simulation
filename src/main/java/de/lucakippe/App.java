@@ -17,8 +17,8 @@ public class App {
     }
 
     public static void runVis() {
-        int foodCount = 5;
-        int interval = 1500;
+        int foodCount = 3;
+        int interval = 2500;
         boolean antiPheromones = true;
 
         String timestamp = String.valueOf(System.currentTimeMillis());
@@ -26,7 +26,7 @@ public class App {
         System.out.println(runSeed);
         String baseDirName = timestamp + "_" + foodCount + "_" + interval + "_" + antiPheromones;
 
-        Simulation sim = new Simulation(true, antiPheromones, foodCount, interval, baseDirName, 0, 1912814178);
+        Simulation sim = new Simulation(true, antiPheromones, foodCount, interval, baseDirName, 0, 169624657);
         
         
        Renderer visualizer = new Renderer(sim); // Pass the simulation to the renderer
