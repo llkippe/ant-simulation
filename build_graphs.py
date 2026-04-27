@@ -49,7 +49,7 @@ colors = {sid: cmap(i % 10) for i, sid in enumerate(source_ids)}
 #xticks = np.arange(0, max_step+100, 1000)
 
 # convergence daten 
-troughput_convergence = 0.35
+troughput_convergence = 0.4
 steps_for_convergence_avg = 200
 window_size_for_convergence_avg = int(steps_for_convergence_avg / df_settings['reportingInterval'].iloc[0])
 convergence_data_pairs = []
@@ -86,22 +86,22 @@ marker_y_start = (len(source_ids) - 1) * 1.5
 marker_spacing = 1.5   # Erhöht den Abstand, um Überlappung zu vermeiden
 
 
-required_points = min_stable_steps / df_settings['reportingInterval'].iloc[0]
+min_stable_steps_required_points = min_stable_steps / df_settings['reportingInterval'].iloc[0]
 
-for d_step in deletion_steps:
+for del_step in deletion_steps:
     # 1. Zielwert: 90% des Niveaus vor der Löschung
-    pre_data = global_throughput[(global_throughput.index >= d_step - steps_for_avg) & (global_throughput.index < d_step)]
+    pre_data = global_throughput[(global_throughput.index >= del_step - steps_for_avg) & (global_throughput.index < del_step)]
     if pre_data.empty: continue
     target_value = pre_data.mean() * puffer
     
 
     # 2. daten nach loeschung fuer 800 steps
-    immediate_post_deletion = global_throughput[(global_throughput.index > d_step) & 
-                                                (global_throughput.index <= d_step + look_ahead_for_dropoff)]
+    immediate_post_deletion = global_throughput[(global_throughput.index > del_step) & 
+                                                (global_throughput.index <= del_step + look_ahead_for_dropoff)]
     
 
     
-    if len(immediate_post_deletion) < required_points:
+    if len(immediate_post_deletion) < min_stable_steps_required_points:
         continue
 
 
@@ -113,13 +113,14 @@ for d_step in deletion_steps:
     if dropped_data.empty:
         # FALL A: Perfekte Resilienz. System hat den Verlust sofort kompensiert.
         # Wir markieren den Zeitpunkt der Löschung als 'Resilience reached'.
-        recovery_step = d_step
-        recovery_events.append((recovery_step, global_throughput.loc[d_step], d_step))
+        recovery_step = del_step
+        recovery_events.append((recovery_step, global_throughput.loc[del_step], del_step))
+        recovery_times.append(0)  # 0 Schritte bis Erholung, da sofortige Resilienz
         continue
 
     # FALL B: System ist eingebrochen. Wir suchen den ersten Punkt der stabilen Erholung.
     first_drop_step = dropped_data.index.min()
-    post_deletion = global_throughput[global_throughput.index > d_step]
+    post_deletion = global_throughput[global_throughput.index > del_step]
     actual_recovery_search = post_deletion[post_deletion.index > first_drop_step]
     
     for step, value in actual_recovery_search.items():
@@ -133,8 +134,8 @@ for d_step in deletion_steps:
             if len(future_window) >= (min_stable_steps / df_settings['reportingInterval'].iloc[0]):
                 if future_window.mean() >= target_value:
                     recovery_step = step
-                    recovery_times.append(recovery_step - d_step)
-                    recovery_events.append((recovery_step, value, d_step))
+                    recovery_times.append(recovery_step - del_step)
+                    recovery_events.append((recovery_step, value, del_step))
                     break
 
 
@@ -321,12 +322,12 @@ active_counts = pd.Series(0, index=pivot_df.index)
 for sid in source_ids:
     s_data = df_source[df_source['source_id'] == sid]
     c_step = s_data['creation_step'].max()
-    d_step = s_data['deletion_step'].max()
+    del_step = s_data['deletion_step'].max()
     
     if c_step != -1:  # Quelle wurde erstellt
         mask = (pivot_df.index >= c_step)
-        if d_step != -1:
-            mask = mask & (pivot_df.index <= d_step)
+        if del_step != -1:
+            mask = mask & (pivot_df.index <= del_step)
         active_counts += mask.astype(int)
 
 # 2. Jains Fairness Formel anwenden: (Summe(x))^2 / (n * Summe(x^2))

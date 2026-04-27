@@ -1,26 +1,38 @@
+recovery time als wichtigste metrik.
+
+die zeit messen die die ameisen kolonie braucht um sich von einer Futterquelle verlust wieder zu erholen
+
+2 Faelle 
+- futterquelle ist nicht entdekct bzw fast kein beitrag.
+  -> <0.05 eintrag von quelle die verschwunden ist.
+  -> irrelevant nicht mit in statistik zaehlen.
+
+- futterquelle hat signifikanten eintrag
+-> > 0.25 | 0.05 
+-> ab dem punkt wo die futterquelle auf 0 ist
+-> niveau wieder von 50 steps davor auf 0.9 erreicht
+-> fuer wie lange ist das zeitfenster aktiv?
+-> es baut sich tedezniell immer weiter auf. intervall zeit
+
+im abit confused. when i look at this chart.
+i see diffrent amount of recovery points in the srouce trhourput and the performance boxplots.
+can you explain me why.
+also im a bit confused. 
+
+look_ahead_for_dropoff  is a 1000 
+but still it seems like there a recovery poitns after a 1000 are still counted.
+i dont get why.
 
 
+cant be double of source interval bis recoverted da das vermutlich nicht mehr mit akuteller deletion zu tun hat
 
+3, 4000 passt aktuelles modell
+3, 1000 run 14. der dropoff kommt viel spaeter da quelle noch laenger aktiv
 
+der fall A akutell sagt nichts ueber kolonie aus wenn futterquelle nicht aktiv war
+75 prozengt gesunken der aktiven quelle
 
-- erfolgsrate evtl doch mit einspeisen in rate? bzw zumindest daruaf achten
-
-
-MIDDENDORF
-- erfolgsrate doch einspeisen in werte. wenn ja wie, wenn nein wei behandlen
-
-
-
-
-
-
-
-
-
-troughput_convergence  rihctig in graphen?
-
-
-
+von deletion point aus bis rised. 
 
 visualisation:
 

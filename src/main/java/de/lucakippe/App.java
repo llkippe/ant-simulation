@@ -9,16 +9,16 @@ import java.util.concurrent.TimeUnit;
 public class App {
     public static void main(String[] args) {
        
-    //runBatches();
+    runBatches();
      
          
-    runVis();
+    //runVis();
         
     }
 
     public static void runVis() {
-        int foodCount = 3;
-        int interval = 2500;
+        int foodCount = 6;
+        int interval = 1000;
         boolean antiPheromones = true;
 
         String timestamp = String.valueOf(System.currentTimeMillis());
@@ -34,21 +34,24 @@ public class App {
     }
 
    public static void runBatches() {
-        int N = 10; 
+ 
         // deutlicher unterschied beobachten koennen. 
         // 6, 1500 fairness und global avg, recovery zeiten, pfad recovery zeiten
 
         //{6, 1500} , {3, 3000}
 //,{6,1500}, {9,1500},  {6, 3000} , {6, 1000}
          
-        int[][] configs = {{3, 1500}}; 
+
+        int N = 50;
+        int[][] configs = {{3, 2000},{6,1000}, {1, 6000}, {3,1000}, {3, 4000}};
+
         boolean[] antiPheromones = {true, false};
 
         ExecutorService executor = Executors.newFixedThreadPool(4);
 
         for (int[] config : configs) {
             int foodCount = config[0];
-            int interval = config[1];
+            int interval = config[1];   
             String timestamp = String.valueOf(System.currentTimeMillis());
 
             // Iterate through the run indices first

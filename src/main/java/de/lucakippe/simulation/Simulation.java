@@ -42,12 +42,15 @@ public class Simulation {
 
         foodSourceCount = simFoodSources;
         foodSpawnIntervall = newFoodSpawnIntervall;
+
         
         // Ein Basis-Faktor, wie viele "Events" wir mindestens sehen wollen
         int minEvents = 8; 
         // Wir nehmen entweder (Anzahl Quellen * 1.5) oder mindestens 6
         int eventCount = Math.max(minEvents, (int)(simFoodSources * 1.5));
-        maxStepCount = newFoodSpawnIntervall * eventCount;
+        int minStepsPerEvent = Math.max(newFoodSpawnIntervall, 500);
+        maxStepCount = minStepsPerEvent * eventCount;
+        System.out.println("Max Step Count: " + maxStepCount);
 
         nextFoodSourceId = 0;
         
