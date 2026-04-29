@@ -43,7 +43,7 @@ public class App {
          
 
         int N = 50;
-        int[][] configs = {{3, 2000},{6,1000}, {1, 6000}, {3,1000}, {3, 4000}};
+        int[][] configs = {{3, 3000}, {3, 1500}, {3, 6000}, {1, 3000}};
 
         boolean[] antiPheromones = {true, false};
 

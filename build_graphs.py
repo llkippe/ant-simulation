@@ -48,24 +48,35 @@ colors = {sid: cmap(i % 10) for i, sid in enumerate(source_ids)}
 #max_step = df_source['step'].max()
 #xticks = np.arange(0, max_step+100, 1000)
 
-# convergence daten 
-troughput_convergence = 0.4
-steps_for_convergence_avg = 200
-window_size_for_convergence_avg = int(steps_for_convergence_avg / df_settings['reportingInterval'].iloc[0])
+# ==========================================
+# CONVERGENCE TRACKING PARAMETERS
+# ==========================================
+convergence_throughput_threshold = 0.4
+convergence_evaluation_steps = 200
+convergence_window_size = int(convergence_evaluation_steps / df_settings['reportingInterval'].iloc[0])
 convergence_data_pairs = []
 
-# Wir nutzen das bereits berechnete global_throughput
+# ==========================================
+# RECOVERY TRACKING PARAMETERS & DATA
+# ==========================================
 global_throughput = pivot_df.sum(axis=1)
-deletion_steps = df_source[df_source['deletion_step'] != -1]['deletion_step'].unique()
+all_deletion_steps = df_source[df_source['deletion_step'] != -1]['deletion_step'].unique()
+
+# Thresholds and timing for recovery tracking
+inactive_food_source_threshold = 0.05  # Throughput below this = source considered "inactive"
+recovery_target_ratio = 0.9  # Must reach this ratio of pre-deletion throughput
+recovery_stability_steps = 400  # Minimum steps to confirm stable recovery
+pre_deletion_averaging_steps = 400  # Steps before deletion to calculate baseline throughput
+max_recovery_time_steps = int(df_settings['FOOD_SPAWN_INTERVALL'].iloc[0] * 2)  # Max steps after deletion to find recovery
+
+# Data structures for recovery analysis
+recovery_events = []  # For charting: (recovery_step, throughput_value, deletion_step)
+recovery_times = []  # For statistics: time deltas from deletion to recovery
+active_deletion_events = []  # Deletions from sources that were actually active
 
 
-recovery_events = [] # Liste für Marker: (step, throughput_value)
-recovery_times = []  # Liste für Statistik: (time_delta)
-# Puffer und Bestätigungsfenster definieren
-puffer = 0.9  # 90% des alten Niveaus reichen als "recovered"
-min_stable_steps = 400 # fuer wie lange ist das niveu gehalten 
-steps_for_avg = 400 # wie viele schritte vor loeschung fuer zielwert berechnen
-look_ahead_for_dropoff = 1000 # wie viele schritte nach loeschen schauen, ob Einbruch kommt
+
+
 
 # ==========================================
 # GRAPH 1: SOURCE THROUGHPUT + SOURCE EVENTS (SEPARAT)
@@ -86,105 +97,138 @@ marker_y_start = (len(source_ids) - 1) * 1.5
 marker_spacing = 1.5   # Erhöht den Abstand, um Überlappung zu vermeiden
 
 
-min_stable_steps_required_points = min_stable_steps / df_settings['reportingInterval'].iloc[0]
+min_stability_points_required = recovery_stability_steps / df_settings['reportingInterval'].iloc[0]
 
-for del_step in deletion_steps:
-    # 1. Zielwert: 90% des Niveaus vor der Löschung
-    pre_data = global_throughput[(global_throughput.index >= del_step - steps_for_avg) & (global_throughput.index < del_step)]
-    if pre_data.empty: continue
-    target_value = pre_data.mean() * puffer
-    
+# ==========================================
+# RECOVERY ANALYSIS: Find active deletions and track recovery
+# ==========================================
 
-    # 2. daten nach loeschung fuer 800 steps
-    immediate_post_deletion = global_throughput[(global_throughput.index > del_step) & 
-                                                (global_throughput.index <= del_step + look_ahead_for_dropoff)]
+for source_deletion_step in all_deletion_steps:
+    # Get source data to check if it was actually active before deletion
+    source_data_at_deletion = df_source[df_source['deletion_step'] == source_deletion_step]
     
-
-    
-    if len(immediate_post_deletion) < min_stable_steps_required_points:
+    if source_data_at_deletion.empty:
         continue
-
-
-    # Check: Gab es überhaupt einen signifikanten Einbruch relativ nah am Löschzeitpunkt?
-    dropped_data = immediate_post_deletion[immediate_post_deletion < target_value]
-
-
     
-    if dropped_data.empty:
-        # FALL A: Perfekte Resilienz. System hat den Verlust sofort kompensiert.
-        # Wir markieren den Zeitpunkt der Löschung als 'Resilience reached'.
-        recovery_step = del_step
-        recovery_events.append((recovery_step, global_throughput.loc[del_step], del_step))
-        recovery_times.append(0)  # 0 Schritte bis Erholung, da sofortige Resilienz
+    # Get the throughput of this source just before deletion
+    source_id = source_data_at_deletion['source_id'].iloc[0]
+    source_throughput_data = df_source[df_source['source_id'] == source_id].sort_values('step')
+    
+    # Find throughput just before deletion (last available point)
+    pre_deletion_source_throughput = source_throughput_data[source_throughput_data['step'] < source_deletion_step]
+    if pre_deletion_source_throughput.empty:
         continue
-
-    # FALL B: System ist eingebrochen. Wir suchen den ersten Punkt der stabilen Erholung.
-    first_drop_step = dropped_data.index.min()
-    post_deletion = global_throughput[global_throughput.index > del_step]
-    actual_recovery_search = post_deletion[post_deletion.index > first_drop_step]
     
-    for step, value in actual_recovery_search.items():
-        if value >= target_value:
-            # Stabilitäts-Check: Ist das MINIMUM im Fenster >= target_value?
-            future_window = global_throughput[(global_throughput.index >= step) & 
-                                              (global_throughput.index <= step + min_stable_steps)]
-        
+    source_throughput_at_deletion = pre_deletion_source_throughput['throughput'].iloc[-1]
+    
+    # *** ONLY TRACK RECOVERY IF SOURCE WAS ACTUALLY ACTIVE ***
+    if source_throughput_at_deletion < inactive_food_source_threshold:
+        continue  # Skip inactive sources completely
+    
+    # Source was active - add to tracking list
+    active_deletion_events.append({
+        'deletion_step': source_deletion_step,
+        'source_id': source_id,
+        'source_throughput_at_deletion': source_throughput_at_deletion
+    })
+    
+    # Calculate target throughput: 90% of pre-deletion global average
+    pre_deletion_global_data = global_throughput[
+        (global_throughput.index >= source_deletion_step - pre_deletion_averaging_steps) & 
+        (global_throughput.index < source_deletion_step)
+    ]
+    
+    if pre_deletion_global_data.empty:
+        continue
+    
+    target_throughput = pre_deletion_global_data.mean() * recovery_target_ratio
+    
+    # Find when the deleted source becomes inactive (throughput falls below threshold)
+    source_post_deletion = source_throughput_data[source_throughput_data['step'] > source_deletion_step]
+    
+    source_becomes_inactive_step = None
+    for _, row in source_post_deletion.iterrows():
+        if row['throughput'] < inactive_food_source_threshold:
+            source_becomes_inactive_step = row['step']
+            break
+    
+    # If source never became inactive in recorded data, we can't determine recovery
+    if source_becomes_inactive_step is None:
+        continue
+    
+    # Now search for recovery starting from when the source became inactive
+    recovery_search_start = source_becomes_inactive_step
+    recovery_search_end = source_deletion_step + max_recovery_time_steps
+    
+    recovery_data = global_throughput[
+        (global_throughput.index >= recovery_search_start) & 
+        (global_throughput.index <= recovery_search_end)
+    ]
+    
+    if recovery_data.empty:
+        continue
+    
+    # Look for first point where global throughput reaches target
+    recovery_step_found = None
+    for step, throughput_value in recovery_data.items():
+        if throughput_value >= target_throughput:
+            # Verify stability: check if it stays above target for required window
+            stability_window = global_throughput[
+                (global_throughput.index >= step) & 
+                (global_throughput.index <= step + recovery_stability_steps)
+            ]
             
-            # Wichtig: Das Fenster muss groß genug sein (nicht am Ende der Simulation hängen bleiben)
-            if len(future_window) >= (min_stable_steps / df_settings['reportingInterval'].iloc[0]):
-                if future_window.mean() >= target_value:
-                    recovery_step = step
-                    recovery_times.append(recovery_step - del_step)
-                    recovery_events.append((recovery_step, value, del_step))
+            if len(stability_window) >= min_stability_points_required:
+                if stability_window.mean() >= target_throughput:
+                    recovery_step_found = step
+                    recovery_time = step - source_deletion_step
+                    recovery_events.append((recovery_step_found, throughput_value, source_deletion_step))
+                    recovery_times.append(recovery_time)
                     break
 
 
 
-for i, sid in enumerate(source_ids):
-    # WICHTIG: Sicherstellen, dass die Daten nach 'step' sortiert sind, damit rolling() richtig funktioniert
-    source_data = df_source[df_source['source_id'] == sid].sort_values('step')
+for i, source_id in enumerate(source_ids):
+    # Ensure data is sorted by step for rolling() to work correctly
+    source_data = df_source[df_source['source_id'] == source_id].sort_values('step')
     
-    color = colors[sid]
+    color = colors[source_id]
     y_pos = marker_y_start - (i * marker_spacing)
 
-    # Marker: Creation
-    creation_step = source_data['creation_step'].max()
-    if creation_step != -1:
-        ax_markers.scatter(creation_step, y_pos, color=color, s=120,
+    # Marker: Source Creation
+    source_creation_step = source_data['creation_step'].max()
+    if source_creation_step != -1:
+        ax_markers.scatter(source_creation_step, y_pos, color=color, s=120,
                     marker=mmarkers.MarkerStyle('o', fillstyle='left'),
                     edgecolors='black', zorder=10)
 
-    # Marker: Deletion
-    deletion_step = source_data['deletion_step'].max()
-    if deletion_step != -1:
-        ax_markers.scatter(deletion_step, y_pos, color=color, s=130,
+    # Marker: Source Deletion
+    source_deletion_step = source_data['deletion_step'].max()
+    if source_deletion_step != -1:
+        ax_markers.scatter(source_deletion_step, y_pos, color=color, s=130,
                     marker=mmarkers.MarkerStyle('o', fillstyle='right'),
                     edgecolors='black', zorder=10)
     
 
-    # --- KONVERGENZ (Gleitender Durchschnitt) ---
-    # Berechne den Durchschnitt über 'steps_for_convergence_avg' Schritte.
-    # min_periods sorgt dafür, dass erst ab Schritt 50 überhaupt ein Wert ausgespuckt wird.
-    
-   
+    # --- CONVERGENCE TRACKING (Rolling Average) ---
+    # Calculate rolling average over convergence_evaluation_steps
+    # min_periods ensures output only starts after enough data points
     rolling_avg = source_data['throughput'].rolling(
-        window=window_size_for_convergence_avg, 
-        min_periods=window_size_for_convergence_avg
+        window=convergence_window_size, 
+        min_periods=convergence_window_size
     ).mean()
 
-
+    # Find where rolling average exceeds convergence threshold
+    above_convergence_threshold = source_data[rolling_avg > convergence_throughput_threshold]
     
-    # Filtere die Originaldaten auf die Schritte, wo der gleitende Durchschnitt über dem Threshold liegt
-    over_convergence = source_data[rolling_avg > troughput_convergence]
-    
-    if creation_step != -1 and not over_convergence.empty:
-        # Der erste Schritt, der die Bedingung erfüllt (das ist das ENDE des 50-Schritte-Fensters)
-        first_step_over_convergence = over_convergence['step'].min()
-        steps_to_reach_convergence = first_step_over_convergence - creation_step
+    if source_creation_step != -1 and not above_convergence_threshold.empty:
+        # First step where rolling average exceeds threshold (marks end of evaluation window)
+        first_step_above_threshold = above_convergence_threshold['step'].min()
+        steps_to_reach_convergence = first_step_above_threshold - source_creation_step
         
-        convergence_data_pairs.append((sid, steps_to_reach_convergence))
+        convergence_data_pairs.append((source_id, steps_to_reach_convergence))
 
-        ax_markers.scatter(first_step_over_convergence, y_pos, color=color, s=110, marker='^',
+        ax_markers.scatter(first_step_above_threshold, y_pos, color=color, s=110, marker='^',
                     edgecolors='black', zorder=10)
         
 if recovery_events:
@@ -268,9 +312,9 @@ marker_legend_elements = [
            label='Futterquelle erstellt', markerfacecolor='gray', markersize=10, markeredgecolor='black'),
     Line2D([0], [0], marker=mmarkers.MarkerStyle('o', fillstyle='right'), color='w', 
            label='Futterquelle gelöscht', markerfacecolor='gray', markersize=10, markeredgecolor='black'),
-    Line2D([0], [0], marker='^', color='w', label=f'Durchsatz > {troughput_convergence}',
+    Line2D([0], [0], marker='^', color='w', label=f'Durchsatz > {convergence_throughput_threshold}',
            markerfacecolor='gray', markersize=12, markeredgecolor='black'),
-    Line2D([0], [0], marker='D', color='w', label='Resilienz erreicht',
+    Line2D([0], [0], marker='D', color='w', label='Erholung erreicht',
            markerfacecolor='darkviolet', markersize=8, markeredgecolor='black'),
 ]
 
@@ -316,29 +360,30 @@ plt.close(fig2)
 
 
 # ==========================================
-# Berechnung Jain's Fairness Index
-# 1. Berechne, wie viele Futterquellen zu jedem Zeitschritt AKTIV sind
-active_counts = pd.Series(0, index=pivot_df.index)
-for sid in source_ids:
-    s_data = df_source[df_source['source_id'] == sid]
-    c_step = s_data['creation_step'].max()
-    del_step = s_data['deletion_step'].max()
+# CALCULATION OF JAIN'S FAIRNESS INDEX
+# ==========================================
+# Count how many food sources are active at each simulation step
+active_source_counts = pd.Series(0, index=pivot_df.index)
+for source_id in source_ids:
+    source_data = df_source[df_source['source_id'] == source_id]
+    source_creation_step = source_data['creation_step'].max()
+    source_deletion_step = source_data['deletion_step'].max()
     
-    if c_step != -1:  # Quelle wurde erstellt
-        mask = (pivot_df.index >= c_step)
-        if del_step != -1:
-            mask = mask & (pivot_df.index <= del_step)
-        active_counts += mask.astype(int)
+    if source_creation_step != -1:  # Source was created
+        active_mask = (pivot_df.index >= source_creation_step)
+        if source_deletion_step != -1:
+            active_mask = active_mask & (pivot_df.index <= source_deletion_step)
+        active_source_counts += active_mask.astype(int)
 
-# 2. Jains Fairness Formel anwenden: (Summe(x))^2 / (n * Summe(x^2))
-sum_tp = pivot_df.sum(axis=1)
-sum_sq_tp = (pivot_df ** 2).sum(axis=1)
+# Apply Jain's Fairness Formula: (Sum(x))^2 / (n * Sum(x^2))
+sum_throughput = pivot_df.sum(axis=1)
+sum_throughput_squared = (pivot_df ** 2).sum(axis=1)
 
-# Verhindern von Division durch Null (wo keine Quellen oder kein Durchsatz ist)
-denominator = (active_counts * sum_sq_tp).replace(0, np.nan)
-jains_index = (sum_tp ** 2) / denominator
+# Prevent division by zero (where no sources or no throughput)
+denominator = (active_source_counts * sum_throughput_squared).replace(0, np.nan)
+jains_index = (sum_throughput ** 2) / denominator
 
-# NaNs zu 0 umwandeln (falls zeitweise gar kein Durchsatz da ist)
+# Convert NaNs to 0 (where there's temporarily no throughput)
 jains_index = jains_index.fillna(0)
 
 
@@ -354,15 +399,15 @@ failed_conv = total_sources - converged_count
 conv_rate = (converged_count / total_sources * 100) if total_sources > 0 else 0
 
 if convergence_data_pairs:
-    # 1. Daten entpacken: sids ist eine Liste der IDs, steps eine Liste der Werte
-    point_sids, point_steps = zip(*convergence_data_pairs)
-    point_colors = [colors[sid] for sid in point_sids]
+    # Unpack data: source_ids and steps to convergence
+    source_ids_converged, steps_to_convergence = zip(*convergence_data_pairs)
+    point_colors = [colors[sid] for sid in source_ids_converged]
     x_coords = np.random.normal(1, 0.04, size=converged_count)
-    ax_box1.scatter(x_coords, point_steps, alpha=0.7, edgecolors='black', 
+    ax_box1.scatter(x_coords, steps_to_convergence, alpha=0.7, edgecolors='black', 
                       color=point_colors, s=70, marker='^')
-    ax_box1.hlines(np.median(point_steps), 0.8, 1.2, colors='black', linestyles='--', lw=2)
+    ax_box1.hlines(np.median(steps_to_convergence), 0.8, 1.2, colors='black', linestyles='--', lw=2)
 
-ax_box1.set_title(f'Schritte bis Durchsatz > {troughput_convergence} erreicht', fontsize=10)
+ax_box1.set_title(f'Schritte bis Durchsatz > {convergence_throughput_threshold} erreicht', fontsize=10)
 ax_box1.set_ylabel('Schritte nach Erstellung', fontsize=10)
 ax_box1.set_xticks([1])
 # Rotes Label für Convergence-Fehler
@@ -371,12 +416,12 @@ plt.setp(lbl_conv, color='red', fontweight='bold', fontsize=9)
 ax_box1.grid(axis='y', linestyle='--', alpha=0.3)
 
 # --- 2. Time-to-Recovery ---
-total_deletions = len(deletion_steps)
+total_active_deletions = len(active_deletion_events)
 recovered_count = len(recovery_times)
-failed_rec = total_deletions - recovered_count
-rec_rate = (recovered_count / total_deletions * 100) if total_deletions > 0 else 0
+failed_rec = total_active_deletions - recovered_count
+rec_rate = (recovered_count / total_active_deletions * 100) if total_active_deletions > 0 else 0
 
-if total_deletions > 0:
+if total_active_deletions > 0:
     if recovery_times:
         x_jitter = np.random.normal(1, 0.05, size=len(recovery_times))
         ax_box_rec.scatter(x_jitter, recovery_times, color='darkviolet', s=60, marker='D', edgecolors='black', alpha=0.7)
@@ -389,18 +434,18 @@ if total_deletions > 0:
     lbl_rec = ax_box_rec.set_xticklabels([f"Nicht regeneriert:\n{failed_rec} mal ({100-rec_rate:.1f}%)"])
     plt.setp(lbl_rec, color='red', fontweight='bold', fontsize=9)
 
-# --- 3. Pfadeffizienz (unverändert) ---
-eff_food = df_global['avg_step_efficeny_to_food'].dropna()
-eff_nest = df_global['avg_step_efficeny_to_nest'].dropna()
-if not eff_food.empty:
-    bp2 = ax_box2.boxplot([eff_food, eff_nest], patch_artist=True, tick_labels=['Futter', 'Nest'], widths=0.4)
+# --- 3. Path Efficiency ---
+efficiency_to_food = df_global['avg_step_efficeny_to_food'].dropna()
+efficiency_to_nest = df_global['avg_step_efficeny_to_nest'].dropna()
+if not efficiency_to_food.empty:
+    bp2 = ax_box2.boxplot([efficiency_to_food, efficiency_to_nest], patch_artist=True, tick_labels=['Futter', 'Nest'], widths=0.4)
     for patch, color in zip(bp2['boxes'], ['green', 'blue']):
         patch.set(facecolor=color, alpha=0.5)
     ax_box2.set_title('Ø Pfadeffizienz', fontsize=10)
     ax_box2.set_ylim(-0.05, 1.05)
     ax_box2.grid(axis='y', linestyle='--', alpha=0.3)
 
-# --- 4. Gesamt-Durchsatz (unverändert) ---
+# --- 4. Global Throughput ---
 bp4 = ax_box3.boxplot(global_throughput, patch_artist=True, widths=0.4)
 for box in bp4['boxes']:
     box.set(facecolor='gray', alpha=0.5)
@@ -408,7 +453,7 @@ ax_box3.set_title('Ø Gesamt-Durchsatz', fontsize=10)
 ax_box3.set_xticklabels([''])
 ax_box3.grid(axis='y', linestyle='--', alpha=0.3)
 
-# --- 5. Jain's Fairness Index (unverändert) ---
+# --- 5. Jain's Fairness Index ---
 bp5 = ax_box_jain.boxplot(jains_index, patch_artist=True, widths=0.4)
 for box in bp5['boxes']:
     box.set(facecolor='gold', alpha=0.5)
@@ -424,51 +469,116 @@ plt.close(fig3)
 
 
 # ==========================================
-# 5. Save Extended Numerical Metrics to File
+# METRICS CALCULATION & EXPORT
 # ==========================================
-out_metrics_csv = os.path.join(base_dir, "performance_summary.csv")
+output_metrics_csv = os.path.join(base_dir, "performance_summary.csv")
 
-def get_stats(data_list):
+def calculate_statistics(data_list):
+    """Calculate mean, std, min, max, median, and IQR for a data list"""
     data = np.array(data_list)
     if data.size == 0:
-        return [np.nan] * 5 # Jetzt 5 Werte
+        return [np.nan] * 6
     data = data[~pd.isna(data)]
     if data.size == 0:
-        return [np.nan] * 5
+        return [np.nan] * 6
         
-    return [np.mean(data), np.std(data), np.min(data), np.max(data), np.median(data)]
-# Stats berechnen
-# Stats berechnen (liefert jetzt 5 Werte)
+    iqr = np.percentile(data, 75) - np.percentile(data, 25)
+    return [np.mean(data), np.std(data), np.min(data), np.max(data), np.median(data), iqr]
+
+# Extract convergence steps from data pairs
 if convergence_data_pairs:
-    _, steps_to_reach_convergence_list = zip(*convergence_data_pairs)
+    _, convergence_steps_list = zip(*convergence_data_pairs)
 else:
-    steps_to_reach_convergence_list = []
+    convergence_steps_list = []
 
-stats_conv  = get_stats(steps_to_reach_convergence_list)
-stats_rec   = get_stats(recovery_times)
-stats_tp    = get_stats(global_throughput)
-stats_eff_f = get_stats(eff_food)
-stats_eff_n = get_stats(eff_nest)
-stats_jain  = get_stats(jains_index)
+# Calculate statistics for all metrics
+stats_convergence_steps = calculate_statistics(convergence_steps_list)
+stats_recovery_steps = calculate_statistics(recovery_times)
+stats_global_throughput = calculate_statistics(global_throughput)
+stats_efficiency_to_food = calculate_statistics(efficiency_to_food)
+stats_efficiency_to_nest = calculate_statistics(efficiency_to_nest)
+stats_fairness_index = calculate_statistics(jains_index)
 
+# Build metrics summary dictionary
 metrics_summary = {
-    "Metric": ["Convergence_Steps", "Recovery_Steps", "Global_Throughput", 
-               "Efficiency_Food", "Efficiency_Nest", "Jains_Fairness_Index"],
-    "Mean":   [stats_conv[0], stats_rec[0], stats_tp[0], stats_eff_f[0], stats_eff_n[0], stats_jain[0]],
-    "Median": [stats_conv[4], stats_rec[4], stats_tp[4], stats_eff_f[4], stats_eff_n[4], stats_jain[4]], # NEU
-    "Std_Dev":[stats_conv[1], stats_rec[1], stats_tp[1], stats_eff_f[1], stats_eff_n[1], stats_jain[1]],
-    "Min":    [stats_conv[2], stats_rec[2], stats_tp[2], stats_eff_f[2], stats_eff_n[2], stats_jain[2]],
-    "Max":    [stats_conv[3], stats_rec[3], stats_tp[3], stats_eff_f[3], stats_eff_n[3], stats_jain[3]]
+    "Metric": [
+        "Convergence_Steps",
+        "Recovery_Steps", 
+        "Global_Throughput",
+        "Efficiency_Food",
+        "Efficiency_Nest",
+        "Jains_Fairness_Index"
+    ],
+    "Mean": [
+        stats_convergence_steps[0],
+        stats_recovery_steps[0],
+        stats_global_throughput[0],
+        stats_efficiency_to_food[0],
+        stats_efficiency_to_nest[0],
+        stats_fairness_index[0]
+    ],
+    "Median": [
+        stats_convergence_steps[4],
+        stats_recovery_steps[4],
+        stats_global_throughput[4],
+        stats_efficiency_to_food[4],
+        stats_efficiency_to_nest[4],
+        stats_fairness_index[4]
+    ],
+    "Std_Dev": [
+        stats_convergence_steps[1],
+        stats_recovery_steps[1],
+        stats_global_throughput[1],
+        stats_efficiency_to_food[1],
+        stats_efficiency_to_nest[1],
+        stats_fairness_index[1]
+    ],
+    "Min": [
+        stats_convergence_steps[2],
+        stats_recovery_steps[2],
+        stats_global_throughput[2],
+        stats_efficiency_to_food[2],
+        stats_efficiency_to_nest[2],
+        stats_fairness_index[2]
+    ],
+    "Max": [
+        stats_convergence_steps[3],
+        stats_recovery_steps[3],
+        stats_global_throughput[3],
+        stats_efficiency_to_food[3],
+        stats_efficiency_to_nest[3],
+        stats_fairness_index[3]
+    ],
+    "IQR": [
+        stats_convergence_steps[5],
+        stats_recovery_steps[5],
+        stats_global_throughput[5],
+        stats_efficiency_to_food[5],
+        stats_efficiency_to_nest[5],
+        stats_fairness_index[5]
+    ]
 }
 
 df_summary = pd.DataFrame(metrics_summary)
 
-# Raten anhängen (mit NaN für den Median-Platzhalter)
-df_summary.loc[len(df_summary)] = ["Convergence_Rate_Pct", conv_rate, np.nan, np.nan, np.nan, np.nan]
-df_summary.loc[len(df_summary)] = ["Recovery_Rate_Pct", rec_rate, np.nan, np.nan, np.nan, np.nan]
+# Append success rates
+df_summary.loc[len(df_summary)] = [
+    "Convergence_Success_Rate_Pct",
+    conv_rate,
+    np.nan, np.nan, np.nan, np.nan, np.nan
+]
+df_summary.loc[len(df_summary)] = [
+    "Recovery_Success_Rate_Pct",
+    rec_rate,
+    np.nan, np.nan, np.nan, np.nan, np.nan
+]
+df_summary.loc[len(df_summary)] = [
+    "Active_Deletion_Events_Count",
+    len(active_deletion_events),
+    np.nan, np.nan, np.nan, np.nan, np.nan
+]
 
-
-# Run_ID einfügen und speichern
+# Add run ID and save
 df_summary.insert(0, "Run_ID", run_id)
-df_summary.to_csv(out_metrics_csv, index=False)
+df_summary.to_csv(output_metrics_csv, index=False)
 

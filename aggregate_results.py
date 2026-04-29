@@ -204,7 +204,7 @@ for config_folder in config_folders:
                 linestyle=':',
                 alpha=1,
                 linewidth=2,
-                label='Futterquelle wieder erschienen' if first_respawn else '_nolegend_'
+                label='Futterquellenereignis' if first_respawn else '_nolegend_'
             )
             first_respawn = False
 
@@ -296,7 +296,7 @@ for config_folder in config_folders:
                 linestyle=':',
                 alpha=1,
                 linewidth=2,
-                label='Futterquelle wieder erschienen' if first_respawn else '_nolegend_'
+                label='Futterquellenereignis' if first_respawn else '_nolegend_'
             )
             first_respawn = False
 
@@ -324,7 +324,7 @@ for config_folder in config_folders:
             metric_data = merged_summary[merged_summary['Metric'] == metric]
             
             # Raten-Metriken: Mean und Std verwenden
-            if metric in ['Convergence_Rate_Pct', 'Recovery_Rate_Pct']:
+            if metric in ['Convergence_Success_Rate_Pct', 'Recovery_Success_Rate_Pct']:
                 values = metric_data['Mean'].dropna().astype(float)
                 if len(values) > 0:
                     perf_rows.append({
@@ -334,11 +334,13 @@ for config_folder in config_folders:
                         'Median': np.nan,
                         'Min': np.nan,
                         'Max': np.nan,
+                        'IQR': np.nan,
                         'n_runs': len(values)
                     })
             # Convergence_Steps und Recovery_Steps: nutze Median (wie in boxplot)
-            elif metric in ['Convergence_Steps_From_Run_Median', 'Recovery_Steps_From_Run_Median']:
+            elif metric in ['Convergence_Steps', 'Recovery_Steps']:
                 values = metric_data['Median'].dropna().astype(float)
+                iqr_values = metric_data['IQR'].dropna().astype(float)
                 if len(values) > 0:
                     perf_rows.append({
                         'Metric': metric,
@@ -347,11 +349,13 @@ for config_folder in config_folders:
                         'Median': values.median(),
                         'Min': values.min(),
                         'Max': values.max(),
+                        'IQR': iqr_values.median() if len(iqr_values) > 0 else np.nan,
                         'n_runs': len(values)
                     })
             # Alle anderen Metriken: nutze Mean
             else:
                 values = metric_data['Mean'].dropna().astype(float)
+                iqr_values = metric_data['IQR'].dropna().astype(float)
                 if len(values) > 0:
                     perf_rows.append({
                         'Metric': metric,
@@ -360,6 +364,7 @@ for config_folder in config_folders:
                         'Median': values.median(),
                         'Min': values.min(),
                         'Max': values.max(),
+                        'IQR': iqr_values.median() if len(iqr_values) > 0 else np.nan,
                         'n_runs': len(values)
                     })
         
@@ -459,7 +464,7 @@ for config_folder in config_folders:
             ax_eff.axis('off')
 
         # Jain's Fairness
-        jain_values = merged_summary.loc[merged_summary['Metric'] == 'Ø Jains_Fairness_Index', 'Mean'].dropna().astype(float)
+        jain_values = merged_summary.loc[merged_summary['Metric'] == 'Jains_Fairness_Index', 'Mean'].dropna().astype(float)
         if len(jain_values) > 0:
             ax_j.boxplot(jain_values, notch=True, patch_artist=True, boxprops=dict(facecolor='gold', alpha=0.5))
             ax_j.scatter(np.random.normal(1, 0.08, size=len(jain_values)), jain_values, color='darkgoldenrod', alpha=0.7, s=30)
