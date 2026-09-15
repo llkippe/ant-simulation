@@ -49,17 +49,5 @@ python3 aggregate_results.py
 ```
 
 **Reproduzierbarkeit / Hinweise**
-- Jeder Run speichert Settings und Metriken im jeweiligen `run_X`-Ordner. Für die Bachelorarbeit sollten Seed-Werte und die exakten Settings dokumentiert werden (werden in den Run-CSV-Dateien protokolliert).
+- Jeder Run speichert Settings und Metriken im jeweiligen `run_X`-Ordner.
 - `aggregate_results.py` ruft bei Bedarf `build_graphs.py` auf, falls `performance_summary.csv` fehlt.
-
-**Code-Qualität, Formatierung & Kommentare**
-- Ich habe die Hauptskripte gesichtet und in die README eingearbeitet. Wenn du möchtest, kann ich:
-  - einen automatischen Formatierdurchlauf für Python (z. B. `black` + `isort`) und Java (z. B. `google-java-format`) durchführen;
-  - fehlende Docstrings / JavaDoc-Vorschläge in einzelnen Dateien als Patch vorschlagen oder direkt anwenden.
-
-Bitte sag kurz, ob ich automatische Formatierung und/oder gezielte Kommentar-/Docstring-Verbesserungen direkt anwenden soll. Dann mache ich das und aktualisiere die betreffenden Dateien.
-
-**Literatur / Nutzung in der Thesis**
-- Beim Zitieren: beschreibe den Versuchsaufbau (Anzahl Ameisen, Spawn-Intervalle, Seed, Auswertungsmethoden). Die relevanten Parameter finden sich in den `settings.csv` jedes Runs und in `Simulation.java`.
-
--- Ende --
