@@ -11,6 +11,9 @@ Dieses Repository enthält Code und Auswertungsskripte für Simulationen einer A
 - `aggregate_results.py`: Aggregiert Ergebnisse über mehrere Runs und erzeugt Meta-CSV sowie Meta-Plots. [aggregate_results.py](aggregate_results.py#L1)
 - `build_graphs.py`: Erzeugt Diagramme und Run-spezifische Metriken aus einzelnen Run-Ordnern. [build_graphs.py](build_graphs.py#L1)
 - Java-Simulation: Hauptklasse `Simulation`. [src/main/java/de/lucakippe/simulation/Simulation.java](src/main/java/de/lucakippe/simulation/Simulation.java#L1)
+- `App.java`: Startklasse / Launcher für die Simulation. Enthält zwei Hauptmodi:
+	- `runVis()` — startet eine einzelne Simulation mit Visualisierung (Processing-basierte Darstellung). Nutze diesen Modus für interaktive Betrachtung und Debugging.
+	- `runBatches()` — führt viele (headless) Läufe parallel aus und schreibt die Ergebnis-Ordner (für Aggregation/Analyse). Dieser Modus erzeugt reproduzierbare Runs mit Seeds und unterschiedlichen Konfigurationen. [src/main/java/de/lucakippe/App.java](src/main/java/de/lucakippe/App.java#L1)
 
 **Datenstruktur (kurz)**
 - `data/<config_folder>/run_X/` — einzelne Läufe mit CSV-Dateien wie `source_metrics.csv`, `global_metrics.csv`, `performance_summary.csv`, `settings.csv`.
