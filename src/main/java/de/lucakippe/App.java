@@ -9,16 +9,16 @@ import java.util.concurrent.TimeUnit;
 public class App {
     public static void main(String[] args) {
        
-    runBatches();
+   // runBatches();
      
          
-    //runVis();
+    runVis();
         
     }
 
     public static void runVis() {
         int foodCount = 6;
-        int interval = 1000;
+        int interval = 1500;
         boolean antiPheromones = true;
 
         String timestamp = String.valueOf(System.currentTimeMillis());

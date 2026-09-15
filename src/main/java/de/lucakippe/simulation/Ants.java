@@ -17,7 +17,7 @@ public class Ants {
     private boolean[] isFollowingStrongPath;
     public final double STRONG_PATH_THRESHOLD = 4;
     private final int CONFUSED_STEP_INTERVAL = 75;
-    private final double PERCENTAGE_TRIGGER_END_OF_TRAIL = 0.4;
+    private final double LOST_PATH_PERCENTAGE = 0.6;
     private final int[] stepsSinceLeavingStrongPath;
 
 
@@ -27,10 +27,9 @@ public class Ants {
 
     private double maxPheromoneDepositAmount = 1;
     private double maxPheromoneDepositAmountDepleted = 2;
-    private double maxPheromoneDepositAmountScoutOnFood = 6;
+    private double maxPheromoneDepositAmountScout = 6;
     private double[] currentPheromoneDepositAmount;
     private double pheremonDepositDecayRate = 0.005;
-    private double foodDepletedWeight = 1; // based on research anti is double as strong not sure about this
 
     private double sensorDistance = 15.0;
     private double sensorOffsetAngle = Math.PI / 5; // 36 
@@ -100,7 +99,7 @@ posY[i] = nest.getPosY() + r * Math.sin(angle);
             states[index] = AntState.RETURNING_HOME;
             directions[index] += Math.PI; // turn around
             currentPheromoneDepositAmount[index] = maxPheromoneDepositAmount;
-            if(isScout[index]) currentPheromoneDepositAmount[index] = maxPheromoneDepositAmountScoutOnFood;
+            if(isScout[index]) currentPheromoneDepositAmount[index] = maxPheromoneDepositAmountScout;
             carryingFoodFromSourceId[index] = foodSourceId;
             metricsManager.reportStepsToFood(stepsSinceLastTarget[index], foodSourceId); 
             stepsSinceLastTarget[index] = 0;
@@ -238,7 +237,7 @@ posY[index] = nest.getPosY() + r * Math.sin(angle);
 
             // die ameise war auf starken pfad 
             else if(isFollowingStrongPath[index]) {
-                double lostPathThreshold = (STRONG_PATH_THRESHOLD * (1 - PERCENTAGE_TRIGGER_END_OF_TRAIL));
+                double lostPathThreshold = (STRONG_PATH_THRESHOLD * LOST_PATH_PERCENTAGE);
 
                 if(currentPheromoneIntensity < lostPathThreshold) {
                     stepsSinceLeavingStrongPath[index]++;
@@ -287,7 +286,7 @@ posY[index] = nest.getPosY() + r * Math.sin(angle);
                         double foodIntensity = pheromones.getFoodPheromone(sx, sy);
                         double depletedIntensity = pheromones.getFoodDepletedPheromone(sx, sy);
 
-                        sum += Math.max(0, foodIntensity - (depletedIntensity * foodDepletedWeight)); 
+                        sum += Math.max(0, foodIntensity - (depletedIntensity)); 
                     }           
                 } else { // RETURNING_HOME OR RETURNING_HOME_DISSAPOINTED
                     if (nest.isInsideNest(sx, sy)) sum += TARGET_BOOST;

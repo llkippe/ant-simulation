@@ -13,7 +13,7 @@ public class Pheromones {
     final static double LINEAR_THRESHHOLD = 0.05;
     final static double LINEAR_DROPOFF = 0.0001;
     final static double EVAPORATION_RATE = 0.004;
-    final static double FOOD_DEPLETED_EVAPORTAION_RATE = 0.004; // half of original evaporation rate
+    //final static double FOOD_DEPLETED_EVAPORTAION_RATE = 0.004; // half of original evaporation rate
 
     final static double DIFFUSION_RATE = 0.04;
     final static double FOOD_DEPLETED_DIFFUSION_RATE = 0.25;
@@ -67,7 +67,7 @@ public class Pheromones {
             if(foodDepletedGrid[i] > MAX_PHEROMONE_STRENGTH) foodDepletedGrid[i] = MAX_PHEROMONE_STRENGTH;
 
             if (foodDepletedGrid[i] > LINEAR_THRESHHOLD) {
-                foodDepletedGrid[i] *= (1 - FOOD_DEPLETED_EVAPORTAION_RATE);
+                foodDepletedGrid[i] *= (1 - EVAPORATION_RATE);
             } else {
                 foodDepletedGrid[i] -= LINEAR_DROPOFF;
             }
